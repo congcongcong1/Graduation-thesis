@@ -1,0 +1,9 @@
+% English Abstract
+
+With the rapid development of 5G communications and streaming technologies, video data has become the dominant component of global Internet traffic. Achieving high-quality visual experiences under limited bandwidth has become a critical challenge. However, traditional video coding standards face a trade-off between compression efficiency and computational complexity, while end-to-end deep learning compression schemes, despite their excellent performance, are difficult to deploy on edge devices.
+
+To address these challenges, this thesis proposes a reinforcement learning-based co-processing solution for video coding. The proposed system is built around the NVIDIA Video Encoder (NVENC) hardware encoder, incorporating a lightweight Rate-Adaptive Pre-processing Network (RAPNet) to perform intelligent video enhancement before encoding. The system employs an Actor-Critic architecture with a residual learning strategy that constrains the action space to fine-grained corrections of the original frames. A compound reward function based on relative rate-distortion gain is designed to achieve effective trade-offs between perceptual quality and transmission bitrate. Furthermore, a composite loss strategy comprising policy gradient loss, pixel-level consistency loss, and total variation smoothness loss is proposed to effectively suppress high-frequency artifacts during the enhancement process.
+
+Experiments are conducted on 1080p resolution video sequences in YUV420 format at multiple bitrate points including 800Kbps, 400Kbps, and 200Kbps. Results demonstrate that the proposed scheme achieves approximately 5\% BD-Rate optimization in LPIPS and SSIM metrics compared to the baseline, with the model parameter count strictly controlled under 1M, effectively improving the perceptual quality of videos at low bitrates.
+
+% Note: English keywords are set in \whusetup within my_paper.tex

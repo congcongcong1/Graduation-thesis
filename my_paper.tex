@@ -1,0 +1,122 @@
+% ============================================================
+%  my_paper.tex — 罗子聪 本科毕业论文
+%  题目：基于视频编码的协处理方案
+%  编译方式：XeLaTeX → BibTeX → XeLaTeX → XeLaTeX
+% ============================================================
+
+\documentclass[type = bachelor]{whu-thesis}
+
+\whusetup{
+  info = {
+    title      = {基于视频编码的协处理方案},
+    title*     = {Co-processing Solution Based on Video Coding},
+    department  = {电子信息学院},
+    department* = {School of Electronic Information},
+    author      = {罗子聪},
+    author*     = {Luo Zicong},
+    student-id  = {2022302121310},
+    supervisor  = {黄公平},
+    supervisor* = {Huang Gongping},
+    academic-title  = {教授},
+    academic-title* = {Prof.},
+    major   = {通信工程},
+    major*  = {Communication Engineering},
+    year  = 2026,
+    month = 6,
+    keywords  = {视频编码, 硬件编码器, 强化学习, 前处理, 率失真优化},
+    keywords* = {Video Coding, Hardware Encoder, Reinforcement Learning, Pre-processing, Rate-Distortion Optimization},
+  },
+  style = {
+    font      = termes,
+    math-font = termes,
+    cjk-font  = windows,
+    bib-backend  = bibtex,
+    bib-resource = {ref/my-refs.bib},
+    % library,  % 电子版提交时取消注释，去掉所有空白页
+  }
+}
+
+% ---- 加载模块 ----
+\whumodule{algorithm2e}                % 算法伪代码支持
+
+% ---- 额外宏包（按需取消注释）----
+\usepackage{listings}                  % 代码高亮
+\usepackage{xcolor}                    % 颜色支持
+\usepackage{subcaption}                % 子图支持
+\usepackage{booktabs}                  % 三线表
+\usepackage{multirow}                  % 表格合并行
+\usepackage{makecell}                  % 表格单元格换行
+
+% ---- 代码高亮样式 ----
+\lstset{
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  rulecolor=\color{gray!30},
+  breaklines=true,
+  tabsize=4,
+  captionpos=b,
+  xleftmargin=2em,
+  framexleftmargin=1.5em,
+}
+
+\begin{document}
+
+% ---- 目录 ----
+\tableofcontents
+\listoffigures   % 图目录
+\listoftables    % 表目录
+
+% ---- 符号表 ----
+\begin{notation}
+  $s_t$        & $t$ 时刻的状态（原始视频帧）\\
+  $a_t$        & $t$ 时刻的动作（增强后的视频帧）\\
+  $R_{total}$  & 复合奖励函数值 \\
+  $Q_{act}$    & 当前动作经编码后的感知质量分数 \\
+  $R_{act}$    & 当前动作经编码后的实际码率 \\
+  $Q_{ref}$    & 基准编码器的参考感知质量分数 \\
+  $R_{ref}$    & 基准编码器的参考码率值 \\
+  $\alpha$     & 感知质量增益权重系数 \\
+  $\beta$      & 码率惩罚权重系数 \\
+  $\lambda$    & 像素级一致性损失权重 \\
+  $\mu$        & 全变分平滑损失权重 \\
+  LPIPS        & 学习感知图像块相似度 \\
+  SSIM         & 结构相似性指标 \\
+  PSNR         & 峰值信噪比 \\
+  BD-Rate      & Bjøntegaard Delta Rate \\
+  NVENC        & NVIDIA Video Encoder \\
+  QP           & 量化参数 \\
+  YCbCr        & 亮度-色差颜色空间 \\
+  RAPNet       & 码率自适应前处理网络 \\
+\end{notation}
+
+% ---- 正文 ----
+\mainmatter
+
+\include{pages/chapter1}  % 第一章：绪论
+\include{pages/chapter2}  % 第二章：国内外研究现状与理论基础
+\include{pages/chapter3}  % 第三章：系统设计与实现
+\include{pages/chapter4}  % 第四章：实验与结果分析
+\include{pages/chapter5}  % 第五章：总结与展望
+
+% ---- 参考文献 ----
+\nocite{*}  % 暂时列出所有文献（正式提交时删除此行，只保留正文中 \cite 过的文献）
+\printbibliography
+
+% ---- 致谢 ----
+\begin{acknowledgements}
+  感谢导师黄公平教授在论文选题、研究过程及论文撰写中给予的悉心指导与帮助。感谢电子信息学院各位老师四年来的辛勤培养，感谢实验室同学们在实验调试和学术交流中的大力支持。感谢家人在求学路上始终如一的理解与鼓励。
+  % ← 在此继续添加你的致谢内容
+\end{acknowledgements}
+
+% ---- 附录（如有代码清单等可在此添加）----
+% \appendix
+% \include{pages/appendix}
+
+\end{document}

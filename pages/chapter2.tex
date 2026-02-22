@@ -1,0 +1,90 @@
+\chapter{国内外研究现状与理论基础}
+
+\section{视频编码标准演进}
+
+视频编码标准的发展经历了多个重要里程碑。从早期的H.261到如今的H.266/VVC，每一代标准都在压缩效率上取得了显著提升\cite{ref19-badawy2025evolution}。本节简要回顾视频编码标准的发展脉络及其核心技术特点。
+
+\subsection{H.265/HEVC标准}
+
+H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进包括：
+
+\begin{itemize}
+  \item 灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块；
+  \item 增强的帧内预测模式，支持35种角度预测方向；
+  \item 改进的环路滤波器，包括去块效应滤波器(DBF)和样本自适应偏移(SAO)滤波器。
+\end{itemize}
+
+\subsection{H.266/VVC标准}
+
+H.266/VVC (Versatile Video Coding)于2020年发布，在HEVC的基础上进一步提升了约30\%--50\%的压缩效率\cite{ref1-bross2021vvc}。然而，其编码计算复杂度的激增使其在实时应用中面临巨大挑战。
+
+\subsection{硬件编码器NVENC}
+
+NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引擎。与软件编码器(如x265)相比，NVENC具有以下特点：
+
+\begin{itemize}
+  \item 极低的编码延迟，支持实时1080p/4K编码；
+  \item 低功耗，不占用CPU/GPU通用计算资源；
+  \item 率失真性能可能不及软件编码器的最高质量模式。
+\end{itemize}
+
+% TODO: 可以在此补充NVENC与x265的性能对比数据
+
+\section{前处理技术分析}
+
+视频前处理的目标是在编码前优化原始信号，使其更适合压缩\cite{ref17-ma2023rateperception}。理想的模型需在计算复杂度、时域一致性与显存开销之间取得平衡。在低码率场景下，有效的降噪几乎等同于压缩。
+
+\subsection{传统CNN架构}
+
+以DnCNN\cite{ref5-ho2021rrdncnn}为代表的早期图像复原模型，结构简单但感受野有限，难以捕捉长距离依赖，容易导致过度平滑，丢失纹理细节。
+
+\subsection{Transformer架构}
+
+以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer架构通过引入自注意力机制，能够有效建模全局依赖关系，在图像复原任务上取得了优异性能。然而，其计算复杂度随图像分辨率呈二次方增长，对于1080p及以上的高清视频处理，计算与显存开销巨大。值得注意的是，如VRT\cite{ref22-liang2022vrt}这类模型的惊人资源消耗是在仅为$320 \times 180$的低分辨率下测得的，若将其外推至1080p视频，其注意力机制的二次方复杂度将使其在任何实时应用中都变得完全不切实际。
+
+% TODO: 可以插入表格对比各架构的参数量和推理耗时（参考开题报告中的表1、表2）
+
+\subsection{状态空间模型架构}
+
+以MambaIR\cite{ref21-guo2024mambaIRv2}为代表的新兴架构将计算复杂度降低至线性级别，同时保留了强大的长距离依赖建模能力。调研数据显示，MambaIR在去除噪声的同时，能比其他模型更好地保留边缘和纹理细节，有效避免了画面的过度"磨皮"效应，使其成为轻量级、高效视频前处理的理想选择。
+
+\section{后处理技术分析}
+
+后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。主要代表性方法包括：
+
+\begin{itemize}
+  \item \textbf{VRT}\cite{ref22-liang2022vrt}：视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；
+  \item \textbf{RVRT}\cite{ref23-liang2022rvrt}：VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；
+  \item \textbf{BasicVSR++}\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}：经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。
+\end{itemize}
+
+% TODO: 可以插入表格对比各模型的复杂度与性能（参考开题报告中的表3、表4）
+
+\section{强化学习基础}
+
+\subsection{马尔可夫决策过程}
+
+强化学习问题通常建模为马尔可夫决策过程(MDP)，由五元组 $(S, A, P, R, \gamma)$ 描述：
+
+\begin{itemize}
+  \item $S$：状态空间；
+  \item $A$：动作空间；
+  \item $P$：状态转移概率；
+  \item $R$：奖励函数；
+  \item $\gamma$：折扣因子。
+\end{itemize}
+
+\subsection{Actor-Critic架构}
+
+Actor-Critic是一种结合了策略梯度方法(Actor)和价值估计方法(Critic)的混合架构\cite{ref26-liu2021elegantrl}。Actor负责根据当前状态选择动作，Critic负责评估当前状态-动作对的价值。其优势在于：
+
+\begin{enumerate}
+  \item 通过Critic的价值估计降低策略梯度的方差；
+  \item Actor可以输出连续动作，适用于图像增强等高维连续空间任务。
+\end{enumerate}
+
+在视频编码领域，文献\cite{ref3-chen2018rl}已证明强化学习能有效应用于HEVC帧级码率分配；AVS M9322提案\cite{ref27-zhao2025rapnet}进一步将其扩展到基于RAPNet的前处理滤波工具中，证明了强化学习在提升编码器率失真性能方面的巨大潜力。
+
+\section{本章小结}
+
+本章首先回顾了视频编码标准的演进历程，重点分析了H.265/HEVC标准\cite{ref10-sullivan2012hevc}及NVENC硬件编码器的特点。随后对主流的前处理与后处理技术进行了分类分析，涵盖了CNN\cite{ref5-ho2021rrdncnn}、Transformer\cite{ref25-liang2021swinir,ref22-liang2022vrt}和状态空间模型\cite{ref21-guo2024mambaIRv2}三类架构的优缺点。最后介绍了强化学习中马尔可夫决策过程和Actor-Critic架构的基本理论，为后续章节的系统设计提供了理论基础。

@@ -1,0 +1,91 @@
+\documentclass[type = bachelor]{whu-thesis}
+% \documentclass[type = master,class = academic]{whu-thesis}
+% \documentclass[type = doctor]{whu-thesis}
+% type: 学位类型，可选项为 bachelor, master, doctor
+% class: 学位类别，可选项为 academic, professional
+
+\whusetup{
+  info = {
+    title      = {请填写你的论文中文题目},   % ← 改成你的论文题目，可用 \\ 手动换行
+    title*     = {Please Fill in Your Thesis Title in English},  % ← 改成你的英文题目
+    department  = {电子信息学院},
+    department* = {School of Electronic Information},
+    author     = {罗子聪},
+    author*    = {Luo Zicong},
+    student-id = {2022302121310},
+    supervisor  = {黄公平},
+    supervisor* = {Huang Gongping},
+    academic-title  = {教授},            % ← 导师职称，如：教授、副教授、研究员
+    academic-title* = {Prof.},
+    % supervisor-outer = {校外导师姓名},  % 有校外导师时取消注释
+    % academic-title-outer = {高级工程师},
+    major   = {通信工程},
+    major*  = {Communication Engineering},
+    year = 2026,
+    month = 6,                           % ← 改成实际答辩/提交月份
+    keywords  = {关键词1, 关键词2, 关键词3, 关键词4}, % ← 改成你的中文关键词（3-5个）
+    keywords* = {keyword1, keyword2, keyword3, keyword4}, % ← 改成你的英文关键词
+  },
+  style = {
+    % 字体相关选项
+    font = termes, % 西文字体，可选项为 default, times, xits, termes
+    math-font = termes, % 数学字体，可选项为 default, xits, termes
+    cjk-font = windows, % 中文字体，可选项为 windows, mac, fandol(Linux/Overleaf/TexPage), sourcehan, none
+    % cjk-fakefont = true, % 使用伪粗体与伪斜体
+    % 参考文献及引用相关选项
+    bib-backend = bibtex, % 参考文献引擎，可选项为 bibtex, biblatex
+    % bib-style = numerical, % 参考文献样式，可选项为 numerical, author-year
+    % cite-style = <>, % 引用样式（自定义）
+    bib-resource = {ref/bachelor-refs.bib}, % 参考文献数据源
+    % 页面相关选项
+    % chapter-page-header = true, % 章节首页是否有页眉
+    % bachelor-encover = true, % 本科毕业论文英文封面
+    % library, % 图书馆模式（去掉论文中所有的空白页）
+    % license, % 使用授权协议书
+    % fullwidth-stop = true, % 句号样式
+    % footnote-style = <>, % 脚注编号样式
+    % abstract-keywords-type  = blankline, % 摘要与关键词之间样式，可选项为 blankline, newline, vfill
+    % abstract-keywords-type* = blankline, % 摘要与关键词之间样式，可选项为 blankline, newline, vfill
+  }
+}
+\whumodule{algorithm2e}
+\begin{document}
+% \raggedbottom % 使得空白都置于每一页底部，可参考 https://github.com/whutug/whu-thesis/issues/276
+
+\tableofcontents % 目录
+% \listoffigures % 图目录
+% \listoftables % 表目录
+
+% 符号表
+% \begin{notation}
+%   $\omega_n$ & $n$-维欧氏空间中单位球的表面积 \\
+%   $\alpha_n$ & $n$-维欧氏空间中单位球的体积 \\
+% \end{notation}
+
+\mainmatter
+
+\include{pages/chapter1.tex}  % 第一章：绪论
+\include{pages/chapter2.tex}  % 第二章：相关工作 / 理论基础
+\include{pages/chapter3.tex}  % 第三章：系统设计 / 方法
+\include{pages/chapter4.tex}  % 第四章：实验与结果分析
+
+% 如需更多章节，继续添加：
+% \include{pages/chapter5.tex}
+
+% ---- 参考文献 ----
+\printbibliography
+
+% ---- 发表成果（选填）----
+% \include{pages/achievement.tex}
+
+% ---- 致谢 ----
+\begin{acknowledgements}
+  % ← 在这里写你的致谢内容，内容限一页
+  感谢导师黄公平教授在论文写作过程中给予的悉心指导与帮助。
+\end{acknowledgements}
+
+% ---- 附录（选填）----
+% \appendix
+% \include{pages/appendix.tex}
+
+\end{document}

@@ -1,0 +1,160 @@
+\chapter{系统设计与实现}
+
+本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。系统的核心思想是将不可导的硬件编码器(NVENC)纳入到强化学习的优化回路中，通过"编码器感知"的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
+
+% ============================================================
+% 【示例：如何插入图片】
+% 将图片文件放入项目根目录的 data/ 文件夹中
+% ============================================================
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{data/system_overview.png}
+%   \caption{基于Actor-Critic架构的视频前处理优化系统框图}
+%   \label{fig:system-overview}
+% \end{figure}
+
+\section{系统总体架构}
+
+本文提出的协处理系统整体框架如图~\ref{fig:pipeline}所示，主要由三个部分组成：
+
+\begin{enumerate}
+  \item \textbf{轻量级AI前处理模块}(RAPNet)\cite{ref27-zhao2025rapnet}：采用基于强化学习的码率自适应前处理网络，在编码前对原始视频帧进行智能增强；
+  \item \textbf{硬件编码器}(NVENC)：利用NVIDIA GPU中的专用编码引擎对增强后的视频进行H.265编码\cite{ref10-sullivan2012hevc}；
+  \item \textbf{AI后处理模块}：在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。
+\end{enumerate}
+
+% TODO: 替换为系统总体架构图
+\begin{figure}[htbp]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{data/pipeline.png}
+  \fbox{\parbox{0.8\textwidth}{\centering\vspace{3cm}请替换为系统总体架构图\\（将图片放到 data/ 文件夹后取消上方注释）\vspace{3cm}}}
+  \caption{前后处理整体流程}
+  \label{fig:pipeline}
+\end{figure}
+
+
+\section{状态空间与动作空间设计}
+
+\subsection{状态空间构建}
+
+定义$t$时刻的状态空间$s_t$为待编码的原始视频帧序列。鉴于NVENC硬件编码器及主流视频标准广泛采用YCbCr 4:2:0格式，系统首先通过双线性插值(Bilinear Interpolation)将下采样的色度分量(Cb, Cr)上采样至与亮度分量(Y)相同的空间分辨率。最终构建的输入状态张量形状为$(B \times T, 3, H, W)$，其中$T$为时序长度，旨在利用视频帧间的时域相关性辅助决策。
+
+\subsection{动作空间定义}
+
+为了克服直接生成像素可能导致的训练震荡与收敛困难问题，系统采用\textbf{残差学习}(Residual Learning)策略。Agent的输出并非直接的像素值，而是针对原始帧的残差修正量。定义$t$时刻的状态为原始视频帧$s_t$，网络输出为残差图$f_{\text{Actor}}(s_t)$，则最终生成的动作$a_t$表示为：
+
+% ============================================================
+% 【示例：如何插入公式】
+% ============================================================
+\begin{equation}
+  a_t = \text{clamp}(s_t + f_{\text{Actor}}(s_t), 0, 1)
+  \label{eq:action}
+\end{equation}
+
+其中，$\text{clamp}(\cdot, 0, 1)$ 操作用于将叠加后的像素值强制约束在合法区间 $[0, 1]$ 内，确保输入硬件编码器的视频帧数据有效。
+
+
+\section{复合奖励函数设计}
+
+针对低码率场景下"主观画质"与"传输带宽"的博弈难题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
+
+\begin{equation}
+  R_{total} = \alpha \cdot \frac{Q_{act} - Q_{ref}}{Q_{ref}} - \beta \cdot \frac{R_{act} - R_{ref}}{R_{ref}}
+  \label{eq:reward}
+\end{equation}
+
+式中，$Q_{act}$ 和 $R_{act}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数（采用LPIPS取负）和实际码率；$Q_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。$\alpha$ 与 $\beta$ 为超参数，分别用于调控感知质量增益与码率惩罚的权重。
+
+
+\section{网络损失函数建模}
+
+为了确保Actor-Critic架构的稳定收敛，针对Critic和Actor网络分别设计了差异化的优化目标。
+
+\subsection{Critic网络损失}
+
+Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标是最小化预测$Q$值与真实奖励$R_{total}$之间的均方误差(MSE)：
+
+\begin{equation}
+  \mathcal{L}_{\text{Critic}} = \text{MSE}(V(s_t, a_t), R_{total})
+  \label{eq:critic-loss}
+\end{equation}
+
+\subsection{Actor网络损失}
+
+Actor网络(RAPNet)的损失函数采用复合损失策略，由策略梯度损失、像素级内容一致性损失(Pixel Loss)以及全变分平滑损失(Total Variation Loss)三部分加权构成：
+
+\begin{equation}
+  \mathcal{L}_{\text{Actor}} = \mathcal{L}_{\text{policy}} + \lambda \cdot \mathcal{L}_{\text{pixel}} + \mu \cdot \mathcal{L}_{\text{TV}}
+  \label{eq:actor-loss}
+\end{equation}
+
+各项的具体定义如下：
+
+\textbf{（1）策略梯度损失}$\mathcal{L}_{\text{policy}}$：旨在最大化Critic对当前动作的评分，引导网络生成高回报的增强帧：
+\begin{equation}
+  \mathcal{L}_{\text{policy}} = -\mathbb{E}[V(s_t, f_{\text{Actor}}(s_t))]
+  \label{eq:policy-loss}
+\end{equation}
+
+\textbf{（2）像素级一致性损失}$\mathcal{L}_{\text{pixel}}$：用于约束生成帧与原始帧在低频内容上的结构一致性，防止色彩偏移。采用加权均方误差形式（亮度通道权重更高）：
+\begin{equation}
+  \mathcal{L}_{\text{pixel}} = 6 \cdot \text{MSE}(Y, \hat{Y}) + 1 \cdot \text{MSE}(C_b, \hat{C}_b) + 1 \cdot \text{MSE}(C_r, \hat{C}_r)
+  \label{eq:pixel-loss}
+\end{equation}
+
+\textbf{（3）全变分平滑损失}$\mathcal{L}_{\text{TV}}$：为了抑制由卷积操作引起的棋盘格伪影及高频噪声，引入各向异性全变分损失(Anisotropic Total Variation Loss)。该损失通过最小化相邻像素间的差异来提升图像的空间平滑度：
+\begin{equation}
+  \mathcal{L}_{\text{TV}} = \frac{1}{N} \sum_{b,c,h,w} \left[ (\hat{x}_{b,c,h+1,w} - \hat{x}_{b,c,h,w})^2 + (\hat{x}_{b,c,h,w+1} - \hat{x}_{b,c,h,w})^2 \right]
+  \label{eq:tv-loss}
+\end{equation}
+
+其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。
+
+\section{RAPNet网络架构}
+
+RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。其核心设计思想包括：
+
+\begin{itemize}
+  \item 采用残差学习策略，输出残差修正量而非直接像素值；
+  \item 利用线性状态空间建模捕获长距离依赖关系\cite{ref21-guo2024mambaIRv2}；
+  \item 支持1080p高清视频的实时推理，确保在端侧设备中的落地可行性。
+\end{itemize}
+
+% TODO: 插入RAPNet的网络结构图
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.75\textwidth]{data/rapnet_arch.png}
+%   \caption{RAPNet网络结构}
+%   \label{fig:rapnet-arch}
+% \end{figure}
+
+
+\section{编码环境搭建}
+
+系统基于NVIDIA Codec SDK搭建真实编码环境，通过Python的\texttt{subprocess}模块实现视频帧在Tensor与硬件编码器之间的实时交互。整体技术路线遵循"感知-决策-反馈-优化"的闭环路径：前处理后的视频输入硬件编码器生成比特流，系统计算重建帧与原始帧之间的感知损失(LPIPS)并获取实际码率，将此反馈计算奖励信号回传。在具体的模型迭代中，通过多轮离线预训练与特定场景UVG数据集\cite{ref28-mercat2020uvg}的在线微调，提升模型在复杂动态背景下的稳定性。
+
+% ============================================================
+% 【示例：如何插入代码】
+% ============================================================
+\begin{lstlisting}[language=Python, caption={NVENC编码调用示例}, label={lst:nvenc-call}]
+import subprocess
+
+def encode_with_nvenc(input_yuv, output_h265, width, height, qp):
+    """使用NVENC硬件编码器进行H.265编码"""
+    cmd = [
+        'ffmpeg', '-y',
+        '-f', 'rawvideo',
+        '-pix_fmt', 'yuv420p',
+        '-s', f'{width}x{height}',
+        '-i', input_yuv,
+        '-c:v', 'hevc_nvenc',
+        '-qp', str(qp),
+        output_h265
+    ]
+    subprocess.run(cmd, check=True)
+\end{lstlisting}
+
+
+\section{本章小结}
+
+本章详细阐述了基于Actor-Critic架构的视频前处理优化系统的设计与实现。首先介绍了系统的总体架构，然后定义了状态空间与动作空间，设计了基于相对率失真增益的复合奖励函数，并建模了Critic和Actor网络的损失函数。最后介绍了RAPNet的网络架构和编码环境的搭建方式。
