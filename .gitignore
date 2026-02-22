@@ -27,8 +27,6 @@
 
 ## Generated if empty string is given at "Please type another file name for output:"
 **/.pdf
-!whu-logo.pdf
-!whu-name.pdf
 ## Bibliography auxiliary files (bibtex/biblatex/biber):
 *.bbl
 *.bcf
@@ -287,6 +285,8 @@ TSWLatexianTemp*
 !.vscode/settings.json
 _minted*
 *.pdf
+!logo/whu-logo.pdf
+!logo/whu-name.pdf
 
 reference/
 
