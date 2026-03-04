@@ -6,15 +6,7 @@
 
 \subsection{H.265/HEVC标准}
 
-H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进包括：
-
-\begin{itemize}
-  \item 灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块；
-  \item 增强的帧内预测模式，支持35种角度预测方向；
-  \item 改进的环路滤波器，包括去块效应滤波器(DBF)和样本自适应偏移(SAO)滤波器。
-\end{itemize}
-
-上述技术改进使HEVC在高清视频压缩效率上实现了质的飞跃，成为当前工业界应用最广泛的编码标准之一。
+H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进主要体现在三个方面：引入了灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块，显著提升了大尺寸块的编码效率；增强了帧内预测模式，支持35种角度预测方向，大幅提高了纹理区域的预测精度；改进了环路滤波器，包括去块效应滤波器(DBF)和样本自适应偏移(SAO)滤波器。这些技术改进使HEVC在高清视频压缩效率上实现了质的飞跃，成为当前工业界应用最广泛的编码标准之一。
 
 \subsection{H.266/VVC标准}
 
@@ -22,15 +14,7 @@ H.266/VVC (Versatile Video Coding)于2020年发布，在HEVC的基础上进一�
 
 \subsection{硬件编码器NVENC}
 
-NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引擎。与软件编码器(如x265)相比，NVENC具有以下特点：
-
-\begin{itemize}
-  \item 极低的编码延迟，支持实时1080p/4K编码；
-  \item 低功耗，不占用CPU/GPU通用计算资源；
-  \item 率失真性能可能不及软件编码器的最高质量模式。
-\end{itemize}
-
-综合以上特点，NVENC在实时编码场景中具有不可替代的优势，但其率失真性能的局限性也为本文的研究提供了优化空间。
+NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引擎。与软件编码器(如x265)相比，NVENC具有极低的编码延迟，可支持实时1080p/4K编码，且功耗极低，不占用CPU/GPU通用计算资源。然而，由于硬件编码器的算法复杂度受芯片面积约束，其率失真性能可能不及软件编码器的最高质量模式。这一局限性正是本文研究的优化空间——通过AI前处理補偿硬件编码器在低码率下的质量损失。
 
 \subsection{视频编码帧类型与GOP结构}
 
@@ -53,23 +37,24 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \subsection{基于FFmpeg的硬件编解码}
 
-在工程实践中，FFmpeg是最通用的音视频处理工具，它通过集成NVIDIA的硬件加速组件来调用GPU编解码能力。核心组件包括：
+在工程实践中，FFmpeg是最通用的音视频处理工具，它通过集成NVIDIA的硬件加速组件来调用GPU编解码能力。表~\ref{tab:ffmpeg-components}汇总了本文涉及的核心组件及其功能。
 
-\begin{itemize}
-  \item \texttt{hevc\_nvenc}：HEVC(H.265)硬件编码器，利用GPU上的专用NVENC引擎将原始视频帧压缩为H.265码流；
-  \item \texttt{hevc\_cuvid}：HEVC(H.265)硬件解码器，利用GPU上的NVDEC引擎将压缩码流解码为原始视频帧；
-  \item \texttt{scale\_npp}：基于NVIDIA NPP库的GPU端缩放滤镜，可保证视频数据在处理过程中始终驻留在显存中，避免CPU与GPU之间的数据拷贝开销。
-\end{itemize}
+\begin{table}[htbp]
+  \centering
+  \caption{FFmpeg硬件加速核心组件}
+  \label{tab:ffmpeg-components}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{组件} & \textbf{类型} & \textbf{功能说明} \\
+    \midrule
+    \texttt{hevc\_nvenc}  & 硬件编码器 & 利用GPU上NVENC引擎将原始视频帧压缩为H.265码流 \\
+    \texttt{hevc\_cuvid}  & 硬件解码器 & 利用GPU上NVDEC引擎将压缩码流解码为原始视频帧 \\
+    \texttt{scale\_npp}   & GPU缩放滤镜 & 基于NPP库实现GPU端缩放，避免CPU-GPU数据拷贝开销 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-上述三个组件构成了FFmpeg调用GPU编解码能力的核心工具链。根据编码器和解码器的选择，常见的转码方案可分为以下三类：
-
-\begin{enumerate}
-  \item \textbf{软解软编}：CPU解码 $\to$ CPU编码，灵活但速度最慢；
-  \item \textbf{软解硬编}：CPU解码 $\to$ NVENC编码，适合已有解码后原始帧的场景；
-  \item \textbf{硬解硬编}：CUVID解码 $\to$ NVENC编码，数据全程驻留显存，速度最快。
-\end{enumerate}
-
-本文的训练系统采用``软解硬编''方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
+根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用``软解硬编''方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
 
 \section{前处理技术分析}
 
@@ -134,15 +119,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{后处理技术分析}
 
-后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。主要代表性方法包括：
-
-\begin{itemize}
-  \item \textbf{VRT}\cite{ref22-liang2022vrt}：视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；
-  \item \textbf{RVRT}\cite{ref23-liang2022rvrt}：VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；
-  \item \textbf{BasicVSR++}\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}：经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。
-\end{itemize}
-
-上述方法各有优劣，在性能与效率之间的取舍决定了其适用场景。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。结果表明，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这为本项目的算法选型提供了有力的数据支撑。
+后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。当前主要的代表性方法包括VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}。其中，VRT作为视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；RVRT作为VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；BasicVSR++作为经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。上述三种方法在性能与效率之间的差异显著，为不同场景下的技术选型提供了参考。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。结果表明，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这为本项目的算法选型提供了有力的数据支撑。
 
 \begin{table}[htbp]
   \centering

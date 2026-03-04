@@ -15,15 +15,7 @@
 
 \section{系统总体架构}
 
-本文提出的协处理系统整体框架如图~\ref{fig:pipeline}所示，主要由三个部分组成：
-
-\begin{enumerate}
-  \item \textbf{轻量级AI前处理模块}(RAPNet)\cite{ref27-zhao2025rapnet}：采用基于强化学习的码率自适应前处理网络，在编码前对原始视频帧进行智能增强；
-  \item \textbf{硬件编码器}(NVENC)：利用NVIDIA GPU中的专用编码引擎对增强后的视频进行H.265编码\cite{ref10-sullivan2012hevc}；
-  \item \textbf{AI后处理模块}：在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。
-\end{enumerate}
-
-三个模块协同工作，形成``前处理$\to$硬件编码$\to$后处理''的完整流水线。
+本文提出的协处理系统整体框架如图~\ref{fig:pipeline}所示，主要由三个部分组成。前端为\textbf{轻量级AI前处理模块}(RAPNet)\cite{ref27-zhao2025rapnet}，采用基于强化学习的码率自适应前处理网络，在编码前对原始视频帧进行智能增强。中间为\textbf{硬件编码器}(NVENC)，利用NVIDIA GPU中的专用编码引擎对增强后的视频进行H.265编码\cite{ref10-sullivan2012hevc}。后端为\textbf{AI后处理模块}，在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。三个模块协同工作，形成``前处理$\to$硬件编码$\to$后处理''的完整流水线。
 
 \begin{figure}[htbp]
   \centering
@@ -158,7 +150,14 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
 
 \section{RAPNet网络架构}
 
-RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。
+RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。完整的网络架构如图~\ref{fig:actor-critic-system}所示。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{data/图2基于Actor-Critic架构的视频前处理优化系统框图.png}
+  \caption{基于Actor-Critic架构的视频前处理优化系统框图}
+  \label{fig:actor-critic-system}
+\end{figure}
 
 \subsection{Actor网络(RAPNet)结构}
 
@@ -183,13 +182,6 @@ ValueNet采用双分支特征融合架构：
 \end{enumerate}
 
 该双分支架构使Critic能够同时感知原始输入和Actor输出的差异，从而更准确地评估动作价值。
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.85\textwidth]{data/图2基于Actor-Critic架构的视频前处理优化系统框图.png}
-  \caption{基于Actor-Critic架构的视频前处理优化系统框图}
-  \label{fig:actor-critic-system}
-\end{figure}
 
 
 \section{编码环境搭建}
@@ -255,7 +247,15 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 
 \section{训练算法}
 
-本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。完整的训练流程如算法~\ref{alg:training}所示。
+本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的关键设计包括：
+
+\begin{itemize}
+  \item \textbf{多GPU协同}：Actor和Critic分别部署在不同GPU上，Critic更新完毕后将参数同步到GPU 0上的副本$Q_{\phi'}$（仅用于前向推理，不参与反向传播），避免跨GPU的自动求导断链问题；
+  \item \textbf{多QP联合训练}：每个step对5个QP点编码并取平均奖励，使网络适应不同码率场景而非过拟合到单一QP；
+  \item \textbf{梯度裁剪}：Actor梯度范数裁剪至1.0，Critic梯度范数裁剪至10.0，防止训练早期因奖励不稳定导致梯度爆炸。
+\end{itemize}
+
+优化器采用Adam，Actor学习率$1 \times 10^{-5}$，Critic学习率$2 \times 10^{-5}$，每1000次迭代衰减为原来的$1/3$。完整的训练流程如算法~\ref{alg:training}所示。
 
 \begin{algorithm}[htbp]
 \caption{基于Actor-Critic的编码器感知前处理训练算法}
@@ -286,15 +286,6 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 }
 \end{algorithm}
 
-训练过程中的关键设计包括：
-
-\begin{itemize}
-  \item \textbf{多GPU协同}：Actor和Critic分别部署在不同GPU上，Critic更新完毕后将参数同步到GPU 0上的副本$Q_{\phi'}$（仅用于前向推理，不参与反向传播），避免跨GPU的自动求导断链问题；
-  \item \textbf{多QP联合训练}：每个step对5个QP点编码并取平均奖励，使网络适应不同码率场景而非过拟合到单一QP；
-  \item \textbf{梯度裁剪}：Actor梯度范数裁剪至1.0，Critic梯度范数裁剪至10.0，防止训练早期因奖励不稳定导致梯度爆炸。
-\end{itemize}
-
-优化器采用Adam，Actor学习率$1 \times 10^{-5}$，Critic学习率$2 \times 10^{-5}$，每1000次迭代衰减为原来的$1/3$。
 
 
 \section{本章小结}

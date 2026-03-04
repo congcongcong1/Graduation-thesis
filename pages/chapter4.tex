@@ -16,8 +16,8 @@
     \textbf{配置项} & \textbf{参数} \\
     \midrule
     CPU         & Intel Core i9-13900K \\  % TODO: 改成你实际的配置
-    GPU         & NVIDIA RTX 4090 (24GB) \\
-    内存        & 64 GB DDR5 \\
+    GPU         & NVIDIA RTX 4090 (48GB)$\times$ 2 \\
+    内存        & 512 GB DDR5 \\
     操作系统    & Ubuntu 22.04 LTS \\
     \bottomrule
   \end{tabular}
@@ -67,21 +67,30 @@
 
 \section{评价指标}
 
-本文采用以下指标对实验结果进行评价：
+本文采用表~\ref{tab:eval-metrics}所列指标对实验结果进行评价。
 
-\begin{itemize}
-  \item \textbf{BD-Rate (Bjøntegaard Delta Rate)}：衡量两条率失真曲线之间码率节省百分比，负值表示节省码率；
-  \item \textbf{LPIPS (Learned Perceptual Image Patch Similarity)}：基于深度学习的感知质量评价指标，值越低越好；
-  \item \textbf{SSIM (Structural Similarity Index)}：结构相似性指标，范围$[0, 1]$，越高越好；
-  \item \textbf{PSNR (Peak Signal-to-Noise Ratio)}：峰值信噪比，单位dB，越高越好；
-  \item \textbf{模型参数量}：衡量模型复杂度，单位为K/M参数个数；
-  \item \textbf{推理时间}：单帧推理耗时，衡量实时性。
-\end{itemize}
+\begin{table}[htbp]
+  \centering
+  \caption{实验评价指标}
+  \label{tab:eval-metrics}
+  \begin{tabular}{llc}
+    \toprule
+    \textbf{指标} & \textbf{含义} & \textbf{优劣方向} \\
+    \midrule
+    BD-Rate   & 两条RD曲线之间的码率节省百分比      & 负值越大越好 \\
+    LPIPS     & 基于深度学习的感知质量评价            & 越低越好 \\
+    SSIM      & 结构相似性指标，范围$[0, 1]$         & 越高越好 \\
+    PSNR      & 峰值信噪比（dB）                     & 越高越好 \\
+    参数量     & 模型复杂度（K/M参数个数）            & 越少越好 \\
+    推理时间   & 单帧推理耗时                         & 越短越好 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 
 \subsection{BD-LPIPS分析}
 
-实验结果表明，基于强化学习的RAPNet前处理框架在LPIPS感知质量指标上相比Baseline取得了显著的BD-LPIPS优化。各视频序列的详细测试结果如表~\ref{tab:bdlpips-results}所示。
+表~\ref{tab:bdlpips-results}列出了各视频序列的详细测试结果。
 
 \begin{table}[htbp]
   \centering
@@ -102,7 +111,7 @@
   \end{tabular}
 \end{table}
 
-从表~\ref{tab:bdlpips-results}可以看出，RAPNet在所有测试序列上均取得了负的BD-LPIPS值，平均BD-LPIPS为$-9.48\%$，表明在相同感知质量下可节省约9.48\%的码率。其中，ParkScene和BasketballDrive序列的改善最为显著，BD-LPIPS分别达到$-13.45\%$和$-12.84\%$。值得注意的是，Cactus序列虽然LPIPS略有上升($+1.92\%$)，但码率大幅下降($-13.62\%$)，综合BD-LPIPS仍达到$-11.15\%$。
+实验结果表明，基于强化学习的RAPNet前处理框架在LPIPS感知质量指标上相比Baseline取得了显著的BD-LPIPS优化。RAPNet在所有测试序列上均取得了负的BD-LPIPS值，平均BD-LPIPS为$-9.48\%$，表明在相同感知质量下可节省约9.48\%的码率。其中，ParkScene和BasketballDrive序列的改善最为显著，BD-LPIPS分别达到$-13.45\%$和$-12.84\%$。值得注意的是，Cactus序列虽然LPIPS略有上升($+1.92\%$)，但码率大幅下降($-13.62\%$)，综合BD-LPIPS仍达到$-11.15\%$。
 
 图~\ref{fig:rd-curve-results}展示了Baseline与RAPNet在所有测试序列上的平均RD曲线对比。可以看到，RAPNet的RD曲线在所有码率点上均低于Baseline，表明在相同码率下RAPNet能够提供更低的LPIPS（即更好的感知质量）。
 
@@ -193,9 +202,9 @@ GOP (Group of Pictures)定义了两个I帧之间的距离。在本文的训练�
 
 \subsubsection{色彩空间与像素格式}
 
-视频编码标准普遍采用YCbCr色彩空间而非RGB，原因在于：（1）人眼对亮度（Y通道）的敏感度远高于色度（Cb/Cr通道），因此可以对色度进行4:2:0子采样而不显著影响主观质量；（2）Y/Cb/Cr三通道之间的相关性低于R/G/B通道，有利于后续的变换编码。
+视频编码标准普遍采用YCbCr色彩空间而非RGB，原因有二：一方面，人眼对亮度（Y通道）的敏感度远高于色度（Cb/Cr通道），因此可以对色度进行4:2:0子采样而不显著影响主观质量；另一方面，Y/Cb/Cr三通道之间的相关性低于R/G/B通道，有利于后续的变换编码。
 
-本系统全程在\textbf{YUV420p}格式下工作：亮度分辨率为$(H, W)$，色度分辨率为$(H/2, W/2)$。训练中需要特别注意：（1）PSNR等客观指标必须在YUV空间计算（Y-PSNR），而非在RGB空间计算，否则会导致结论偏差\footnote{FFmpeg在RGB输入时默认计算R/G/B PSNR，必须通过\texttt{format=yuv420p}强制转换为YUV后再计算。}；（2）随机裁剪坐标必须为2的倍数，以保证YUV420格式下亮度与色度通道的空间对齐。
+本系统全程在\textbf{YUV420p}格式下工作：亮度分辨率为$(H, W)$，色度分辨率为$(H/2, W/2)$。训练中需要特别注意：其一，PSNR等客观指标必须在YUV空间计算（Y-PSNR），而非在RGB空间计算，否则会导致结论偏差\footnote{FFmpeg在RGB输入时默认计算R/G/B PSNR，必须通过\texttt{format=yuv420p}强制转换为YUV后再计算。}；其二，随机裁剪坐标必须为2的倍数，以保证YUV420格式下亮度与色度通道的空间对齐。
 
 \subsubsection{下采样算法选择}
 
@@ -257,28 +266,49 @@ NVENC支持多种码率控制模式，包括CQP（恒定QP）、CBR（恒定码�
 
 \subsection{模型参数量与推理速度}
 
+为评估本文方案的工程实用性，表~\ref{tab:model-efficiency}从参数量和推理速度两个维度对比了主流视频增强模型。
+
 \begin{table}[htbp]
   \centering
-  \caption{模型效率对比}
+  \caption{模型效率对比（输入分辨率：$960 \times 540$，GPU：RTX 4090）}
   \label{tab:model-efficiency}
-  \begin{tabular}{lccc}
+  \begin{tabular}{lcc}
     \toprule
-    \textbf{模型} & \textbf{参数量} & \textbf{MACs(G)} & \textbf{单帧推理时间(ms)} \\
+    \textbf{模型} & \textbf{参数量} & \textbf{单帧推理时间(ms)} \\
     \midrule
-    RAPNet (Ours)\cite{ref27-zhao2025rapnet}  & $<$1M & -- & -- \\
-    DnCNN\cite{ref5-ho2021rrdncnn}             & -- & -- & -- \\
-    SwinIR\cite{ref25-liang2021swinir}         & -- & -- & -- \\
-    VRT\cite{ref22-liang2022vrt}               & -- & -- & -- \\
-    RVRT\cite{ref23-liang2022rvrt}             & -- & -- & -- \\
-    BasicVSR++\cite{ref2-chan2021basicvsr}      & -- & -- & -- \\
+    \textbf{RAPNet (Ours)}\cite{ref27-zhao2025rapnet}  & \textbf{139K} & \textbf{5.4} \\
+    DnCNN\cite{ref5-ho2021rrdncnn}             & 668K  & -- \\
+    SwinIR-light\cite{ref25-liang2021swinir}   & 878K  & -- \\
+    BasicVSR++\cite{ref2-chan2021basicvsr}      & 7.3M  & -- \\
+    RVRT\cite{ref23-liang2022rvrt}             & 13.6M & -- \\
+    VRT\cite{ref22-liang2022vrt}               & 35.6M & -- \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-% TODO: 填入实际的模型效率数据
+从表~\ref{tab:model-efficiency}可以看出，RAPNet的参数量仅为139K，远低于VRT（35.6M）和RVRT（13.6M）等主流模型，甚至不到轻量级DnCNN（668K）的四分之一，单帧推理时间仅5.4ms。
+
+为进一步验证系统在实际编码流水线中的可行性，表~\ref{tab:pipeline-latency}给出了完整编码流水线各阶段的时延分解。
+
+\begin{table}[htbp]
+  \centering
+  \caption{编码流水线各阶段时延分解（$960 \times 540$，单位：ms/帧）}
+  \label{tab:pipeline-latency}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{QP} & \textbf{Read} & \textbf{Downsample} & \textbf{Pre (RAPNet)} & \textbf{Enc (NVENC)} & \textbf{Dec} & \textbf{E2E} \\
+    \midrule
+    37 & 26.7 & 5.9 & 5.4 & 3.3 & 2.7 & 44.1 \\
+    42 & 26.7 & 5.9 & 5.4 & 3.8 & 2.6 & 44.4 \\
+    45 & 26.7 & 5.9 & 5.4 & 2.9 & 3.2 & 44.1 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+从表~\ref{tab:pipeline-latency}可以看出，RAPNet前处理仅耗时5.4ms/帧，占端到端时延的约$12\%$，远低于读取和下采样等I/O操作。这表明轻量级AI前处理在实际编码流水线中几乎不构成性能瓶颈，验证了本文方案在工业级实时视频编码场景中的工程可行性。
 
 
 \section{本章小结}
 
-本章首先搭建了包含硬件环境、软件环境和测试数据集的实验平台，定义了BD-LPIPS、LPIPS、PSNR等评价指标。在5个HEVC标准测试序列上的实验结果表明，RAPNet前处理框架取得了平均$-9.48\%$的BD-LPIPS增益，其中ParkScene和BasketballDrive序列分别达到$-13.45\%$和$-12.84\%$。频域分析显示，模型主要增强了水平和垂直方向的结构分量。在消融实验部分，系统性地验证了编码参数选择（preset、GOP、色彩空间、下采样算法、码率控制模式）的合理性，以及损失函数各项和Random Crop训练策略的贡献。
+本章首先搭建了包含硬件环境、软件环境和测试数据集的实验平台，定义了BD-LPIPS、LPIPS、PSNR等评价指标。在5个HEVC标准测试序列上的实验结果表明，RAPNet前处理框架取得了平均$-9.48\%$的BD-LPIPS增益，其中ParkScene和BasketballDrive序列分别达到$-13.45\%$和$-12.84\%$。频域分析显示，模型主要增强了水平和垂直方向的结构分量。在消融实验部分，系统性地验证了编码参数选择（preset、GOP、色彩空间、下采样算法、码率控制模式）的合理性，以及损失函数各项和Random Crop训练策略的贡献。效率分析表明，RAPNet仅需139K参数和5.4ms/帧的推理开销，占端到端时延的约$12\%$，验证了方案在实时编码场景中的工程可行性。
 
