@@ -14,6 +14,8 @@ H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开�
   \item 改进的环路滤波器，包括去块效应滤波器(DBF)和样本自适应偏移(SAO)滤波器。
 \end{itemize}
 
+上述技术改进使HEVC在高清视频压缩效率上实现了质的飞跃，成为当前工业界应用最广泛的编码标准之一。
+
 \subsection{H.266/VVC标准}
 
 H.266/VVC (Versatile Video Coding)于2020年发布，在HEVC的基础上进一步提升了约30\%--50\%的压缩效率\cite{ref1-bross2021vvc}。然而，其编码计算复杂度的激增使其在实时应用中面临巨大挑战。
@@ -28,6 +30,8 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \item 率失真性能可能不及软件编码器的最高质量模式。
 \end{itemize}
 
+综合以上特点，NVENC在实时编码场景中具有不可替代的优势，但其率失真性能的局限性也为本文的研究提供了优化空间。
+
 \subsection{视频编码帧类型与GOP结构}
 
 在H.264/H.265等视频编码标准中，编码帧主要分为三种类型：
@@ -38,15 +42,14 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \item \textbf{B帧（Bi-directional Predicted Frame）}：双向预测帧，同时参考前后帧进行编码，压缩率最高，但增加了编码延迟和复杂度。
 \end{itemize}
 
-\textbf{GOP (Group of Pictures)}定义了I帧的间隔，即两个I帧之间包含的帧数。例如，GOP=32表示每32帧插入一个I帧。GOP越大，I帧的巨大比特开销被平摊到更多帧上，平均码率越低；但GOP过大会降低容错能力和随机访问效率。在实际应用中，GOP的选择需要在压缩效率与应用需求之间取得平衡。
+如图~\ref{fig:ipb-gop}所示，上述三种帧类型通过特定的排列方式组成GOP结构。\textbf{GOP (Group of Pictures)}定义了I帧的间隔，即两个I帧之间包含的帧数。例如，GOP=32表示每32帧插入一个I帧。GOP越大，I帧的巨大比特开销被平摊到更多帧上，平均码率越低；但GOP过大会降低容错能力和随机访问效率。在实际应用中，GOP的选择需要在压缩效率与应用需求之间取得平衡。
 
-% TODO: 如果有I/P/B帧和GOP结构示意图，可以在此插入
-% \begin{figure}[htbp]
-%   \centering
-%   \includegraphics[width=0.8\textwidth]{data/图片IPB帧与GOP结构.png}
-%   \caption{I/P/B帧类型与GOP结构示意图}
-%   \label{fig:ipb-gop}
-% \end{figure}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{data/图片GOP详解.png}
+  \caption{I/P/B帧类型与GOP结构示意图}
+  \label{fig:ipb-gop}
+\end{figure}
 
 \subsection{基于FFmpeg的硬件编解码}
 
@@ -58,7 +61,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \item \texttt{scale\_npp}：基于NVIDIA NPP库的GPU端缩放滤镜，可保证视频数据在处理过程中始终驻留在显存中，避免CPU与GPU之间的数据拷贝开销。
 \end{itemize}
 
-根据编码器和解码器的选择，常见的转码方案可分为以下三类：
+上述三个组件构成了FFmpeg调用GPU编解码能力的核心工具链。根据编码器和解码器的选择，常见的转码方案可分为以下三类：
 
 \begin{enumerate}
   \item \textbf{软解软编}：CPU解码 $\to$ CPU编码，灵活但速度最慢；
@@ -139,7 +142,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \item \textbf{BasicVSR++}\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}：经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。
 \end{itemize}
 
-为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。结果表明，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这为本项目的算法选型提供了有力的数据支撑。
+上述方法各有优劣，在性能与效率之间的取舍决定了其适用场景。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。结果表明，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这为本项目的算法选型提供了有力的数据支撑。
 
 \begin{table}[htbp]
   \centering
@@ -204,6 +207,8 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \item $\gamma \in [0,1]$：折扣因子，控制对未来奖励的衰减权重。
 \end{itemize}
 
+上述五元组构成了强化学习算法的核心环境模型，也是本文系统设计的理论基础。
+
 \subsection{时序差分学习}
 
 时序差分(Temporal Difference, TD)方法是一类无模型(Model-Free)的在线学习算法，无需知道环境的状态转移概率（即``没有上帝视角''），只能走一步看一步，边走边学习。代表性算法包括：
@@ -249,16 +254,12 @@ Actor-Critic是一种结合了策略梯度方法(Actor)和价值估计方法(Cri
   \item \textbf{Critic}（价值网络）：学习状态-动作值函数$Q_\phi(s,a)$，评估当前动作的好坏，用于替代REINFORCE中的蒙特卡洛估计。
 \end{itemize}
 
-其训练过程可以概括为：
+Actor和Critic在训练过程中相互协作：Critic通过最小化TD误差$\mathcal{L}_{\text{Critic}} = \text{MSE}(Q_\phi(s,a), r + \gamma Q_\phi(s',a'))$更新参数$\phi$；Actor则沿Critic给出的$Q$值梯度方向更新参数$\theta$，使策略朝着获得更高$Q$值的方向进化：
 
-\begin{enumerate}
-  \item Critic通过最小化TD误差$\mathcal{L}_{\text{Critic}} = \text{MSE}(Q_\phi(s,a), r + \gamma Q_\phi(s',a'))$更新参数$\phi$；
-  \item Actor沿Critic给出的$Q$值梯度方向更新参数$\theta$，使策略朝着获得更高$Q$值的方向进化：
-  \begin{equation}
-    \nabla_\theta J \approx \nabla_\theta Q_\phi(s, \pi_\theta(s))
-    \label{eq:actor-update}
-  \end{equation}
-\end{enumerate}
+\begin{equation}
+  \nabla_\theta J \approx \nabla_\theta Q_\phi(s, \pi_\theta(s))
+  \label{eq:actor-update}
+\end{equation}
 
 Actor-Critic架构的优势在于：（1）通过Critic的价值估计大幅降低了策略梯度的方差；（2）Actor可以输出连续动作，天然适用于图像增强等高维连续空间任务。
 

@@ -23,6 +23,8 @@
   \item \textbf{AI后处理模块}：在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。
 \end{enumerate}
 
+三个模块协同工作，形成``前处理$\to$硬件编码$\to$后处理''的完整流水线。
+
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.9\textwidth]{data/图片1 前后处理整体流程.png}
@@ -60,13 +62,11 @@
 
 \begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}]
 def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
-    """Random crop a fixed-size region from YUV420 clip.
-    Args:
-        y:  (T,1,H,W)        Luma channel
-        cb: (T,1,H/2,W/2)    Chroma Cb channel
-        cr: (T,1,H/2,W/2)    Chroma Cr channel
-        crop_h, crop_w:      Crop size (must be even)
-    """
+    # Random crop a fixed-size region from YUV420 clip
+    # y:  (T,1,H,W)      Luma channel
+    # cb: (T,1,H/2,W/2)  Chroma Cb channel
+    # cr: (T,1,H/2,W/2)  Chroma Cr channel
+    # crop_h, crop_w:    Crop size (must be even)
     T, _, H, W = y.shape
     # Random start position (aligned to 2 for YUV420)
     top = random.randint(0, H - crop_h) // 2 * 2
@@ -123,7 +123,7 @@ Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标�
 Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成：
 
 \begin{equation}
-  \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}}
+  \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}} + w_{\text{TV}} \cdot \mathcal{L}_{\text{TV}}
   \label{eq:actor-loss}
 \end{equation}
 
@@ -135,19 +135,26 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
   \label{eq:policy-loss}
 \end{equation}
 
-\textbf{（2）像素级一致性损失}$\mathcal{L}_{\text{pixel}}$：用于约束生成帧与原始帧在低频内容上的结构一致性，防止色彩偏移。采用加权均方误差形式（亮度通道权重更高）：
+\textbf{（2）加权MSE损失}$\mathcal{L}_{\text{mse}}$：用于约束生成帧与原始帧在低频内容上的结构一致性，防止色彩偏移。采用加权均方误差形式（亮度通道权重更高）：
 \begin{equation}
-  \mathcal{L}_{\text{pixel}} = 6 \cdot \text{MSE}(Y, \hat{Y}) + 1 \cdot \text{MSE}(C_b, \hat{C}_b) + 1 \cdot \text{MSE}(C_r, \hat{C}_r)
-  \label{eq:pixel-loss}
+  \mathcal{L}_{\text{mse}} = 6 \cdot \text{MSE}(Y, \hat{Y}) + 1 \cdot \text{MSE}(C_b, \hat{C}_b) + 1 \cdot \text{MSE}(C_r, \hat{C}_r)
+  \label{eq:mse-loss}
 \end{equation}
 
-\textbf{（3）全变分平滑损失}$\mathcal{L}_{\text{TV}}$：为了抑制由卷积操作引起的棋盘格伪影及高频噪声，引入各向异性全变分损失(Anisotropic Total Variation Loss)。该损失通过最小化相邻像素间的差异来提升图像的空间平滑度：
+\textbf{（3）非边缘高频抑制损失}$\mathcal{L}_{\text{hf}}$：这是本文损失设计的核心创新。利用Sobel算子对原始帧进行边缘检测，生成软边缘掩模$E \in [0, 1]$（边缘处值高、平坦处值低），然后仅在\textbf{非边缘区域}惩罚Actor引入的高频修改：
+\begin{equation}
+  \mathcal{L}_{\text{hf}} = \frac{1}{N} \sum \left| \text{HP}(\delta) \right| \cdot (1 - E)
+  \label{eq:hf-loss}
+\end{equation}
+其中，$\delta = a_t - s_t$为Actor输出的修改量，$\text{HP}(\cdot) = \delta - \text{LP}(\delta)$为高通滤波（减去$5 \times 5$均值模糊的低频分量），$E$为Sobel边缘掩模（通过$E = 1 - e^{-k \cdot \hat{e}}$生成软掩模，$k = 10$控制掩模锐度）。该设计允许模型在边缘区域自由修改以增强锐度，但在平坦区域抑制高频噪声以避免编码器浪费码率。
+
+\textbf{（4）全变分平滑损失}$\mathcal{L}_{\text{TV}}$：为了抑制由卷积操作引起的棋盘格伪影及高频噪声，引入各向异性全变分损失(Anisotropic Total Variation Loss)。该损失通过最小化相邻像素间的差异来提升图像的空间平滑度：
 \begin{equation}
   \mathcal{L}_{\text{TV}} = \frac{1}{N} \sum_{b,c,h,w} \left[ (\hat{x}_{b,c,h+1,w} - \hat{x}_{b,c,h,w})^2 + (\hat{x}_{b,c,h,w+1} - \hat{x}_{b,c,h,w})^2 \right]
   \label{eq:tv-loss}
 \end{equation}
 
-其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。
+其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。训练中各损失权重设置为$w_{\text{mse}} = 0.3$、$w_{\text{hf}} = 0.5$、$w_{\text{TV}} = 0.1$。
 
 \section{RAPNet网络架构}
 
@@ -163,7 +170,7 @@ RAPNet采用"PixelUnshuffle → 残差学习 → PixelShuffle"的编码-解码�
   \item \textbf{输出层}：$3 \times 3$卷积 + LeakyReLU + PixelShuffle恢复空间分辨率，输出残差叠加后的增强帧。
 \end{enumerate}
 
-对Y、Cb、Cr三个通道分别设置独立的处理支路，最终输出与输入相同尺寸的YUV420帧。
+对Y、Cb、Cr三个通道分别设置独立的处理支路，最终输出与输入相同尺寸的YUV420帧。该架构通过PixelShuffle/Unshuffle实现的轻量级上下采样，有效控制了参数量和计算开销。
 
 \subsection{Critic网络(ValueNet)结构}
 
@@ -172,8 +179,10 @@ ValueNet采用双分支特征融合架构：
 \begin{enumerate}
   \item \textbf{输入分支}与\textbf{输出分支}分别通过Conv + LeakyReLU + Conv提取特征；
   \item \textbf{特征融合}：Concat两个分支特征；
-  \item \textbf{回归预测}：$3 \times 3$卷积 → 全局平均池化(AvgPool) → MLP(Linear → ReLU → Linear)输出标量$Q$值。
+  \item \textbf{回归预测}：$3 \times 3$卷积 $\to$ 全局平均池化(AvgPool) $\to$ MLP(Linear $\to$ ReLU $\to$ Linear)输出标量$Q$值。
 \end{enumerate}
+
+该双分支架构使Critic能够同时感知原始输入和Actor输出的差异，从而更准确地评估动作价值。
 
 \begin{figure}[htbp]
   \centering
