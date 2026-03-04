@@ -23,11 +23,9 @@
   \item \textbf{AI后处理模块}：在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。
 \end{enumerate}
 
-% TODO: 替换为系统总体架构图
 \begin{figure}[htbp]
   \centering
-  % \includegraphics[width=0.9\textwidth]{data/pipeline.png}
-  \fbox{\parbox{0.8\textwidth}{\centering\vspace{3cm}请替换为系统总体架构图\\（将图片放到 data/ 文件夹后取消上方注释）\vspace{3cm}}}
+  \includegraphics[width=0.9\textwidth]{data/图片1 前后处理整体流程.png}
   \caption{前后处理整体流程}
   \label{fig:pipeline}
 \end{figure}
@@ -54,16 +52,57 @@
 其中，$\text{clamp}(\cdot, 0, 1)$ 操作用于将叠加后的像素值强制约束在合法区间 $[0, 1]$ 内，确保输入硬件编码器的视频帧数据有效。
 
 
+\section{Random Crop训练策略}
+
+在早期的系统设计中，训练时采用2$\times$下采样将1080p视频缩小为540p进行编码。然而，下采样操作不可避免地丢失了原始视频的高频纹理和边缘细节，导致模型难以学习到精细的增强策略。
+
+本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$540 \times 960$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
+
+\begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}]
+def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
+    """Random crop a fixed-size region from YUV420 clip.
+    Args:
+        y:  (T,1,H,W)        Luma channel
+        cb: (T,1,H/2,W/2)    Chroma Cb channel
+        cr: (T,1,H/2,W/2)    Chroma Cr channel
+        crop_h, crop_w:      Crop size (must be even)
+    """
+    T, _, H, W = y.shape
+    # Random start position (aligned to 2 for YUV420)
+    top = random.randint(0, H - crop_h) // 2 * 2
+    left = random.randint(0, W - crop_w) // 2 * 2
+    # Crop Y channel
+    y_crop = y[:, :, top:top+crop_h, left:left+crop_w]
+    # Crop Cb/Cr channels (half resolution)
+    top_c, left_c = top // 2, left // 2
+    crop_h_c, crop_w_c = crop_h // 2, crop_w // 2
+    cb_crop = cb[:, :, top_c:top_c+crop_h_c,
+                      left_c:left_c+crop_w_c]
+    cr_crop = cr[:, :, top_c:top_c+crop_h_c,
+                      left_c:left_c+crop_w_c]
+    return y_crop, cb_crop, cr_crop
+\end{lstlisting}
+
+需要特别注意的是，YUV 4:2:0格式要求裁剪坐标必须是2的倍数，以保证亮度与色度通道的空间对齐。在环境的\texttt{reset()}方法中，每个episode都会随机选择新的裁剪位置，从而实现数据增强效果。
+
+
 \section{复合奖励函数设计}
 
 针对低码率场景下"主观画质"与"传输带宽"的博弈难题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
 
 \begin{equation}
-  R_{total} = \alpha \cdot \frac{Q_{act} - Q_{ref}}{Q_{ref}} - \beta \cdot \frac{R_{act} - R_{ref}}{R_{ref}}
+  R_{total} = \alpha \cdot \frac{V_{cur} - V_{ref}}{|V_{ref}|} + \beta \cdot \frac{R_{ref} - R_{cur}}{R_{ref}}
   \label{eq:reward}
 \end{equation}
 
-式中，$Q_{act}$ 和 $R_{act}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数（采用LPIPS取负）和实际码率；$Q_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。$\alpha$ 与 $\beta$ 为超参数，分别用于调控感知质量增益与码率惩罚的权重。
+式中，$V_{cur}$ 和 $R_{cur}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数（采用LPIPS取负，值越大表示质量越好）和实际码率（kbps）；$V_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。$\alpha = 200$ 与 $\beta = 100$ 为超参数，分别用于调控感知质量增益与码率节省的权重。
+
+为了实现跨码率点的泛化能力，系统在每个训练step中对同一段视频分别在QP $\in \{37, 40, 42, 45, 47\}$ 五个量化参数下进行编码，取所有QP点的平均奖励作为最终奖励信号：
+
+\begin{equation}
+  R_{avg} = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}} R_{total}(q)
+  \label{eq:reward-avg}
+\end{equation}
 
 
 \section{网络损失函数建模}
@@ -81,10 +120,10 @@ Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标�
 
 \subsection{Actor网络损失}
 
-Actor网络(RAPNet)的损失函数采用复合损失策略，由策略梯度损失、像素级内容一致性损失(Pixel Loss)以及全变分平滑损失(Total Variation Loss)三部分加权构成：
+Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成：
 
 \begin{equation}
-  \mathcal{L}_{\text{Actor}} = \mathcal{L}_{\text{policy}} + \lambda \cdot \mathcal{L}_{\text{pixel}} + \mu \cdot \mathcal{L}_{\text{TV}}
+  \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}}
   \label{eq:actor-loss}
 \end{equation}
 
@@ -112,49 +151,143 @@ Actor网络(RAPNet)的损失函数采用复合损失策略，由策略梯度损�
 
 \section{RAPNet网络架构}
 
-RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。其核心设计思想包括：
+RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。
 
-\begin{itemize}
-  \item 采用残差学习策略，输出残差修正量而非直接像素值；
-  \item 利用线性状态空间建模捕获长距离依赖关系\cite{ref21-guo2024mambaIRv2}；
-  \item 支持1080p高清视频的实时推理，确保在端侧设备中的落地可行性。
-\end{itemize}
+\subsection{Actor网络(RAPNet)结构}
 
-% TODO: 插入RAPNet的网络结构图
-% \begin{figure}[htbp]
-%   \centering
-%   \includegraphics[width=0.75\textwidth]{data/rapnet_arch.png}
-%   \caption{RAPNet网络结构}
-%   \label{fig:rapnet-arch}
-% \end{figure}
+RAPNet采用"PixelUnshuffle → 残差学习 → PixelShuffle"的编码-解码结构：
+
+\begin{enumerate}
+  \item \textbf{输入层}：PixelUnshuffle将$(1, H, W)$重排为$(4, H/2, W/2)$，随后通过$3 \times 3$卷积 + LeakyReLU提取浅层特征；
+  \item \textbf{主干层}：5个ResBlock进行残差学习，每个ResBlock包含$3 \times 3$卷积 + LeakyReLU + $3 \times 3$卷积 + 残差连接；
+  \item \textbf{输出层}：$3 \times 3$卷积 + LeakyReLU + PixelShuffle恢复空间分辨率，输出残差叠加后的增强帧。
+\end{enumerate}
+
+对Y、Cb、Cr三个通道分别设置独立的处理支路，最终输出与输入相同尺寸的YUV420帧。
+
+\subsection{Critic网络(ValueNet)结构}
+
+ValueNet采用双分支特征融合架构：
+
+\begin{enumerate}
+  \item \textbf{输入分支}与\textbf{输出分支}分别通过Conv + LeakyReLU + Conv提取特征；
+  \item \textbf{特征融合}：Concat两个分支特征；
+  \item \textbf{回归预测}：$3 \times 3$卷积 → 全局平均池化(AvgPool) → MLP(Linear → ReLU → Linear)输出标量$Q$值。
+\end{enumerate}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{data/图2基于Actor-Critic架构的视频前处理优化系统框图.png}
+  \caption{基于Actor-Critic架构的视频前处理优化系统框图}
+  \label{fig:actor-critic-system}
+\end{figure}
 
 
 \section{编码环境搭建}
 
-系统基于NVIDIA Codec SDK搭建真实编码环境，通过Python的\texttt{subprocess}模块实现视频帧在Tensor与硬件编码器之间的实时交互。整体技术路线遵循"感知-决策-反馈-优化"的闭环路径：前处理后的视频输入硬件编码器生成比特流，系统计算重建帧与原始帧之间的感知损失(LPIPS)并获取实际码率，将此反馈计算奖励信号回传。在具体的模型迭代中，通过多轮离线预训练与特定场景UVG数据集\cite{ref28-mercat2020uvg}的在线微调，提升模型在复杂动态背景下的稳定性。
+系统基于NVIDIA Video Codec SDK搭建真实编码环境，通过FFmpeg调用NVENC硬件编码器实现视频帧在训练循环中的实时编解码。编码$\to$解码$\to$质量评估的完整流程通过FFmpeg命令行调用实现，其核心代码如代码~\ref{lst:nvenc-encode}所示。
 
-% ============================================================
-% 【示例：如何插入代码】
-% ============================================================
-\begin{lstlisting}[language=Python, caption={NVENC编码调用示例}, label={lst:nvenc-call}]
-import subprocess
-
-def encode_with_nvenc(input_yuv, output_h265, width, height, qp):
-    """使用NVENC硬件编码器进行H.265编码"""
-    cmd = [
-        'ffmpeg', '-y',
-        '-f', 'rawvideo',
-        '-pix_fmt', 'yuv420p',
-        '-s', f'{width}x{height}',
-        '-i', input_yuv,
-        '-c:v', 'hevc_nvenc',
-        '-qp', str(qp),
-        output_h265
-    ]
-    subprocess.run(cmd, check=True)
+\begin{lstlisting}[language=Python, caption={NVENC Encode-Decode-Evaluate Pipeline}, label={lst:nvenc-encode}]
+# === Encode: YUV frames -> HEVC bitstream ===
+encode_cmd = [
+    ffmpeg_bin, "-y",
+    "-f", "rawvideo", "-pix_fmt", "yuv420p",
+    "-s:v", f"{W_enc}x{H_enc}",   # Resolution 960x540
+    "-r", str(fps),                # Frame rate
+    "-i", yuv_input_path,          # Input: preprocessed YUV
+    "-c:v", "hevc_nvenc",          # NVENC hardware encoder
+    "-rc", "constqp",              # Constant QP mode
+    "-qp", str(qp),                # Quantization parameter
+    "-preset", "p4",               # Preset (p4=medium)
+    "-profile:v", "main",          # Main Profile
+    "-pix_fmt", "yuv420p",
+    bitstream_path,                # Output: HEVC bitstream
+]
+subprocess.run(encode_cmd, check=True,
+               stdout=subprocess.DEVNULL, stderr=log_file)
+# === Decode: HEVC bitstream -> YUV frames ===
+decode_cmd = [
+    ffmpeg_bin, "-y",
+    "-i", bitstream_path,          # Input: HEVC bitstream
+    "-f", "rawvideo",
+    "-pix_fmt", "yuv420p",
+    decoded_yuv_path,              # Output: decoded YUV
+]
+subprocess.run(decode_cmd, check=True,
+               stdout=subprocess.DEVNULL,
+               stderr=subprocess.DEVNULL)
+# === Quality: compute LPIPS and bitrate ===
+V_cur = compute_lpips(ref_clip_bgr, decoded_clip_bgr)
+bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 \end{lstlisting}
+
+编码环境的核心参数配置如表~\ref{tab:nvenc-config}所示。
+
+\begin{table}[htbp]
+  \centering
+  \caption{NVENC编码环境参数配置}
+  \label{tab:nvenc-config}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{参数} & \textbf{设置} \\
+    \midrule
+    编码标准     & H.265/HEVC \\
+    编码器       & \texttt{hevc\_nvenc} \\
+    码率控制     & \texttt{constqp}（恒定QP模式） \\
+    QP范围       & $\{37, 40, 42, 45, 47\}$ \\
+    编码预设     & \texttt{p4}（medium，编码质量与速度的平衡点） \\
+    编码档次     & Main \\
+    像素格式     & YUV420p \\
+    编码分辨率   & $960 \times 540$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+\section{训练算法}
+
+本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。完整的训练流程如算法~\ref{alg:training}所示。
+
+\begin{algorithm}[htbp]
+\caption{基于Actor-Critic的编码器感知前处理训练算法}
+\label{alg:training}
+\KwIn{视频数据集 $\mathcal{D}$，Baseline RD表，QP集合 $\mathcal{Q} = \{37, 40, 42, 45, 47\}$}
+\KwOut{训练好的Actor网络参数 $\theta^*$}
+初始化 Actor $\pi_\theta$ (GPU 0), Critic $Q_\phi$ (GPU 1), Critic副本 $Q_{\phi'}$ (GPU 0)\;
+构建 Baseline RD 参考表: $\{R_{ref}(v, q), V_{ref}(v, q)\}_{v \in \mathcal{D}, q \in \mathcal{Q}}$\;
+\For{$iter = 1$ \KwTo $N_{max}$}{
+  \tcc{环境重置}
+  从 $\mathcal{D}$ 随机选取视频 $v$，随机读取16帧1080p YUV\;
+  随机裁剪至 $540 \times 960$ 得到状态 $s = (Y, Cb, Cr)$\;
+  \tcc{Actor前向: 生成动作}
+  $a = (Y_a, Cb_a, Cr_a) \leftarrow \pi_\theta(s)$ \tcp*{在GPU 0上}
+  \tcc{环境交互: 编码-解码-评估}
+  \For{$q \in \mathcal{Q}$}{
+    将 $a$ 写入YUV文件，通过 \texttt{hevc\_nvenc} 以QP=$q$编码\;
+    解码重建帧，计算 $V_{cur}(q)$ (LPIPS) 和 $R_{cur}(q)$ (码率)\;
+    $r(q) \leftarrow \alpha \cdot \Delta V(q) + \beta \cdot \Delta R(q)$\;
+  }
+  计算平均奖励: $R_{avg} \leftarrow \text{mean}(\{r(q)\}_{q \in \mathcal{Q}})$\;
+  \tcc{Critic更新 (在GPU 1上)}
+  $\mathcal{L}_{Critic} \leftarrow \text{MSE}(Q_\phi(s, a), R_{avg})$\;
+  反向传播更新 $\phi$，同步参数到 $Q_{\phi'}$\;
+  \tcc{Actor更新 (在GPU 0上)}
+  $\mathcal{L}_{Actor} \leftarrow -Q_{\phi'}(s, \pi_\theta(s)) + w_{mse} \cdot \mathcal{L}_{mse} + w_{hf} \cdot \mathcal{L}_{hf}$\;
+  反向传播更新 $\theta$，梯度范数裁剪至1.0\;
+}
+\end{algorithm}
+
+训练过程中的关键设计包括：
+
+\begin{itemize}
+  \item \textbf{多GPU协同}：Actor和Critic分别部署在不同GPU上，Critic更新完毕后将参数同步到GPU 0上的副本$Q_{\phi'}$（仅用于前向推理，不参与反向传播），避免跨GPU的自动求导断链问题；
+  \item \textbf{多QP联合训练}：每个step对5个QP点编码并取平均奖励，使网络适应不同码率场景而非过拟合到单一QP；
+  \item \textbf{梯度裁剪}：Actor梯度范数裁剪至1.0，Critic梯度范数裁剪至10.0，防止训练早期因奖励不稳定导致梯度爆炸。
+\end{itemize}
+
+优化器采用Adam，Actor学习率$1 \times 10^{-5}$，Critic学习率$2 \times 10^{-5}$，每1000次迭代衰减为原来的$1/3$。
 
 
 \section{本章小结}
 
-本章详细阐述了基于Actor-Critic架构的视频前处理优化系统的设计与实现。首先介绍了系统的总体架构，然后定义了状态空间与动作空间，设计了基于相对率失真增益的复合奖励函数，并建模了Critic和Actor网络的损失函数。最后介绍了RAPNet的网络架构和编码环境的搭建方式。
+本章详细阐述了基于Actor-Critic架构的视频前处理优化系统的设计与实现。首先介绍了系统的总体架构和状态-动作空间设计，提出了基于Random Crop的高频保持训练策略。随后设计了基于相对率失真增益的多QP复合奖励函数，以及包含非边缘高频抑制的频域感知损失函数。在网络架构方面，详述了RAPNet(Actor)和ValueNet(Critic)的结构设计。最后给出了基于FFmpeg的NVENC编码环境搭建方案以及完整的多GPU训练算法。
