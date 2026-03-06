@@ -54,7 +54,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用``软解硬编''方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
+根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用软解硬编方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
 
 \section{前处理技术分析}
 
@@ -115,11 +115,11 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \subsection{状态空间模型架构}
 
-以MambaIR\cite{ref21-guo2024mambaIRv2}为代表的新兴架构将计算复杂度降低至线性级别，同时保留了强大的长距离依赖建模能力。调研数据显示，MambaIR在去除噪声的同时，能比其他模型更好地保留边缘和纹理细节，有效避免了画面的过度"磨皮"效应，使其成为轻量级、高效视频前处理的理想选择。
+以MambaIR\cite{ref21-guo2024mambaIRv2}为代表的新兴架构将计算复杂度降低至线性级别，同时保留了强大的长距离依赖建模能力。调研数据显示，MambaIR在去除噪声的同时，能比其他模型更好地保留边缘和纹理细节，有效避免了画面的过度磨皮效应，使其成为轻量级、高效视频前处理的理想选择。
 
 \section{后处理技术分析}
 
-后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。当前主要的代表性方法包括VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}。其中，VRT作为视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；RVRT作为VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；BasicVSR++作为经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。上述三种方法在性能与效率之间的差异显著，为不同场景下的技术选型提供了参考。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。结果表明，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这为本项目的算法选型提供了有力的数据支撑。
+后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。当前主要的代表性方法包括VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}。其中，VRT作为视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；RVRT作为VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；BasicVSR++作为经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。上述三种方法在性能与效率之间的差异显著，为不同场景下的技术选型提供了参考。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。从已有测试数据看，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这构成了本项目算法选型的主要依据。
 
 \begin{table}[htbp]
   \centering
@@ -166,11 +166,11 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-通过对国内外研究现状的梳理，可以清晰地看到，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标的提升，转向与硬件编码器紧密结合、实现端到端性能与效率协同优化的方向\cite{ref16-ding2021advances}。然而，从表~\ref{tab:complexity-performance}的对比中也不难发现，当前主流的深度学习增强模型在实时性方面存在难以逾越的瓶颈：VRT虽然性能SOTA，但单帧推理超过200ms、显存占用超过2GB，完全无法嵌入NVENC硬件编码流水线中作为实时前处理模块；即便是效率优化后的BasicVSR++，其77ms/帧的推理时延与7.3M参数量也给端侧部署带来了巨大压力。在NVENC编码仅需3$\sim$4ms/帧的背景下，一个合格的前处理模块的推理时延必须控制在相同量级，否则将成为整个流水线的性能瓶颈。这一约束使得参数量低于1M、推理时延低于10ms的超轻量级架构成为唯一可行的技术路线。本研究选择轻量级AI前处理与硬件编码器协同优化的技术路线，正是基于这一工程必然性。
+通过对国内外研究现状的梳理，可以清晰地看到，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标的提升，转向与硬件编码器紧密结合、实现端到端性能与效率协同优化的方向\cite{ref16-ding2021advances}。然而，从表~\ref{tab:complexity-performance}的对比中也不难发现，当前主流的深度学习增强模型在实时性方面存在难以逾越的瓶颈：VRT虽然性能SOTA，但单帧推理超过200ms、显存占用超过2GB，完全无法嵌入NVENC硬件编码流水线中作为实时前处理模块；即便是效率优化后的BasicVSR++，其77ms/帧的推理时延与7.3M参数量也给端侧部署带来了巨大压力。在NVENC编码仅需3$\sim$4ms/帧的背景下，一个合格的前处理模块的推理时延必须控制在相同量级，否则将成为整个流水线的性能瓶颈。这一约束说明在本文所关注的实时需求下，超轻量级架构更具可行性，因此本文优先考虑参数量低于1M、推理时延低于10ms的轻量化路线。这也是本文技术选型的重要依据。
 
 \section{强化学习基础}
 
-强化学习(Reinforcement Learning, RL)是一种通过智能体(Agent)与环境(Environment)交互来学习最优策略的机器学习范式。与监督学习依赖标注数据不同，强化学习通过``试错''(Trial and Error)的方式获取经验，并据此改进决策策略。
+强化学习(Reinforcement Learning, RL)是一种通过智能体(Agent)与环境(Environment)交互来学习最优策略的机器学习范式。与监督学习依赖标注数据不同，强化学习通过试错(Trial and Error)的方式获取经验，并据此改进决策策略。
 
 \subsection{马尔可夫决策过程}
 
@@ -188,7 +188,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \subsection{时序差分学习}
 
-时序差分(Temporal Difference, TD)方法是一类无模型(Model-Free)的在线学习算法，无需知道环境的状态转移概率（即``没有上帝视角''），只能走一步看一步，边走边学习。代表性算法包括：
+时序差分(Temporal Difference, TD)方法是一类无模型(Model-Free)的在线学习算法，无需知道环境的状态转移概率（即没有上帝视角），只能走一步看一步，边走边学习。代表性算法包括：
 
 \textbf{（1）Sarsa算法}：根据当前状态$s$、动作$a$、奖励$r$、下一状态$s'$和下一动作$a'$来更新状态-动作值函数：
 \begin{equation}
@@ -204,7 +204,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \subsection{策略梯度与REINFORCE算法}
 
-上述基于值函数的方法在高维连续动作空间（如像素级图像增强）中面临``维度灾难''的问题。策略梯度(Policy Gradient)方法则直接参数化策略函数$\pi_\theta(a|s)$，并通过梯度上升(Gradient Ascent)优化策略参数$\theta$以最大化期望累积回报：
+上述基于值函数的方法在高维连续动作空间（如像素级图像增强）中面临维度灾难\footnote{维度灾难(Curse of Dimensionality)：指随着状态或动作空间维度的增加，所需的样本数量和计算资源呈指数级增长，导致基于值函数的方法在高维空间中难以有效学习。}的问题。策略梯度(Policy Gradient)方法则直接参数化策略函数$\pi_\theta(a|s)$，并通过梯度上升(Gradient Ascent)优化策略参数$\theta$以最大化期望累积回报：
 
 \begin{equation}
   J(\theta) = \mathbb{E}_{s_0} \left[ V^{\pi_\theta}(s_0) \right]
@@ -240,7 +240,7 @@ Actor和Critic在训练过程中相互协作：Critic通过最小化TD误差$\ma
 
 Actor-Critic架构的优势在于：（1）通过Critic的价值估计大幅降低了策略梯度的方差；（2）Actor可以输出连续动作，天然适用于图像增强等高维连续空间任务。
 
-在视频编码领域，文献\cite{ref3-chen2018rl}已证明强化学习能有效应用于HEVC帧级码率分配；AVS M9322提案\cite{ref27-zhao2025rapnet}进一步将其扩展到基于RAPNet的前处理滤波工具中，证明了强化学习在提升编码器率失真性能方面的巨大潜力。
+在视频编码领域，文献\cite{ref3-chen2018rl}已证明强化学习能有效应用于HEVC帧级码率分配；AVS M9322提案\cite{ref27-zhao2025rapnet}进一步将其扩展到基于RAPNet的前处理滤波工具中，说明其在提升编码器率失真性能方面具有进一步研究价值。
 
 \section{本章小结}
 

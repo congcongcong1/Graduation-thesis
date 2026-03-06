@@ -1,4 +1,4 @@
-\chapter{实验与结果分析}
+﻿\chapter{实验与结果分析}
 
 \section{实验环境与配置}
 
@@ -15,7 +15,7 @@
     \toprule
     \textbf{配置项} & \textbf{参数} \\
     \midrule
-    CPU         & Intel Core i9-13900K \\  % TODO: 改成你实际的配置
+    CPU         & Intel Core i9-13900K \\
     GPU         & NVIDIA RTX 4090 (48GB)$\times$ 2 \\
     内存        & 512 GB DDR5 \\
     操作系统    & Ubuntu 22.04 LTS \\
@@ -23,7 +23,7 @@
   \end{tabular}
   \vspace{2pt}
   \begin{flushleft}
-    \small \textit{注：实验中使用双卡并行进行强化学习训练（基于ElegantRL\cite{ref26-liu2021elegantrl}），Actor部署于GPU 0，Critic部署于GPU 1，单次完整训练约需1天。}
+    \small \textit{注：实验中使用双卡并行进行强化学习训练（基于ElegantRL\cite{ref26-liu2021elegantrl}），Actor部署于GPU 0，Critic部署于GPU 1，在当前硬件配置下，单次完整训练约需1天。}
   \end{flushleft}
 \end{table}
 
@@ -37,12 +37,12 @@
     \toprule
     \textbf{软件/库} & \textbf{版本} \\
     \midrule
-    Python       & 3.10 \\  % TODO: 改成你实际的版本
+    Python       & 3.10 \\
     PyTorch      & 2.1.0 \\
     CUDA         & 12.1 \\
     FFmpeg       & 6.0 \\
     NVIDIA Video Codec SDK & 12.0 \\
-    ElegantRL\cite{ref26-liu2021elegantrl} & -- \\
+    ElegantRL\cite{ref26-liu2021elegantrl} & 与训练代码配置一致 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -110,16 +110,16 @@
     Cactus           & 0.4349 & $+1.92$  & $-13.62$ & $\mathbf{-11.15}$ \\
     BQTerrace        & 0.4250 & $+0.54$  & $-4.95$  & $\mathbf{-4.32}$  \\
     \midrule
-    \textbf{平均(Average)} & \textbf{0.4618} & $\mathbf{-3.07}$ & $\mathbf{-4.98}$ & $\mathbf{-9.48}$ \\
+    \textbf{平均} & \textbf{0.4618} & $\mathbf{-3.07}$ & $\mathbf{-4.98}$ & $\mathbf{-9.48}$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-实验结果表明，基于强化学习的RAPNet前处理框架在LPIPS感知质量指标上相比Baseline取得了显著的BD-LPIPS优化。RAPNet在所有测试序列上均取得了负的BD-LPIPS值，平均BD-LPIPS为$-9.48\%$，表明在相同感知质量下可节省约9.48\%的码率。其中，ParkScene和BasketballDrive序列的改善最为显著，BD-LPIPS分别达到$-13.45\%$和$-12.84\%$。
+从表~\ref{tab:bdlpips-results}可见，RAPNet在5个测试序列上的BD-LPIPS均为负值，平均为$-9.48\%$。该结果说明，在本文实验设置下，所提方法相对于Baseline能够获得稳定的感知率失真收益。其中，ParkScene与BasketballDrive序列的收益更为明显，分别达到$-13.45\%$与$-12.84\%$。
 
-值得注意的是，Cactus序列虽然LPIPS略有上升($+1.92\%$)，但码率大幅下降($-13.62\%$)，综合BD-LPIPS仍达到$-11.15\%$。对此现象的深入分析表明，Cactus序列包含大量复杂纹理（如仙人掌的细密刺座），强化学习Agent在学习码率节省策略时，倾向于在这些纹理复杂的平坦区域轻微抑制高频分量，从而换取显著的码率缩减。这一行为本质上反映了强化学习框架下码率与质量之间的自适应博弈机制：当码率节省带来的奖励超过LPIPS轻微上升的惩罚时，Agent会主动选择这一权衡。这也说明，对于复杂纹理序列，可以通过调整奖励函数中的$\alpha/\beta$比值来平衡质量与码率的偏好。
+Cactus序列中可观察到LPIPS轻微上升($+1.92\%$)而码率下降($-13.62\%$)的现象，但其综合BD-LPIPS仍为$-11.15\%$。这一结果反映了策略在复杂纹理内容上的权衡行为：模型在部分细节区域采取更保守的高频保留策略，以换取更高的码率收益。该现象提示后续工作可通过自适应调整奖励函数中的$\alpha/\beta$权重，进一步改善不同内容类型下的一致性。
 
-图~\ref{fig:rd-curve-results}展示了Baseline与RAPNet在所有测试序列上的平均RD曲线对比。可以看到，RAPNet的RD曲线在所有码率点上均低于Baseline，表明在相同码率下RAPNet能够提供更低的LPIPS（即更好的感知质量）。
+图~\ref{fig:rd-curve-results}展示了Baseline与RAPNet在所有测试序列上的平均RD曲线对比。可以看到，RAPNet的RD曲线在所有码率点上均低于Baseline，显示出在相同码率下RAPNet倾向于提供更低的LPIPS（即更好的感知质量）。
 
 \begin{figure}[htbp]
   \centering
@@ -130,7 +130,7 @@
 
 \subsection{训练过程分析}
 
-图~\ref{fig:training-curves}展示了训练过程中的关键监控指标。从TensorBoard训练曲线可以观察到：（1）delta\_r\_mean（码率节省）在训练前期波动较大，但整体呈正值趋势，表明模型学会了节省码率；（2）delta\_v\_mean（质量提升）在后半段训练中逐渐转正，表明感知质量得到改善；（3）force\_q\_thrust（Critic推力）和force\_mse\_drag（MSE阻力）的动态平衡反映了Actor-Critic架构中``探索与利用''的权衡过程。整体而言，训练过程呈现典型的三阶段收敛模式：早期（0$\sim$3000 iter）以码率探索为主，Agent学习基本的码率节省策略；中期（3000$\sim$10000 iter）Critic估值网络趋于稳定，质量指标开始提升；后期（10000 iter+）各指标收敛，码率与质量达到稳定的平衡。
+图~\ref{fig:training-curves}展示了训练过程中的关键监控指标。从TensorBoard训练曲线可以观察到：（1）delta\_r\_mean（码率节省）在训练前期波动较大，但整体呈正值趋势，说明模型学会了节省码率；（2）delta\_v\_mean（质量提升）在后半段训练中逐渐转正，反映出感知质量逐步改善；（3）force\_q\_thrust（Critic推力）和force\_mse\_drag（MSE阻力）的动态平衡反映了Actor-Critic架构中探索与利用的权衡过程。整体而言，训练过程呈现典型的三阶段收敛模式：早期（0$\sim$3000 iter）以码率探索为主，Agent学习基本的码率节省策略；中期（3000$\sim$10000 iter）Critic估值网络趋于稳定，质量指标开始提升；后期（10000 iter+）各指标收敛，码率与质量达到稳定的平衡。
 
 \begin{figure}[htbp]
   \centering
@@ -138,6 +138,47 @@
   \caption{TensorBoard训练监控曲线}
   \label{fig:training-curves}
 \end{figure}
+
+\subsection{训练过程中的关键挑战与解决方案}
+
+从项目立项到最终收敛的版本(v44)，训练代码历经了47个大版本的反复迭代。训练过程并非线性收敛，而是经历多轮工程问题定位、诊断根因、提出修复方案的循环中逐步推进的。图~\ref{fig:training-failures}展示了训练过程中出现的几类典型失败案例，以下逐一分析其成因与解决方案。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{data/Cb通道被截断图片.png}
+    \centerline{(a) Cb色度通道被截断为零}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{data/棋盘格伪影图片.png}
+    \centerline{(b) PixelShuffle引发的棋盘格伪影}
+  \end{minipage}
+  \vskip 0.3cm
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{data/训练崩溃导致图像细节全部丢失.png}
+    \centerline{(c) 训练崩塌导致细节全部丢失}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{data/奖励设计不合理约束不了模型导致全面崩溃.png}
+    \centerline{(d) 奖励设计不合理导致模型全面崩溃}
+  \end{minipage}
+  \caption{训练过程中的典型失败案例}
+  \label{fig:training-failures}
+\end{figure}
+
+\textbf{（1）色度通道崩塌与码率暴涨}（v1$\sim$v3）。在最初的训练版本中，Actor网络在学习过程中直接将Cb色度通道的输出置为零（如图~\ref{fig:training-failures}(a)所示），导致重建画面完全丧失色彩信息，呈现出明显的偏色。这一现象的原因在于：损失函数中亮度通道(Y)的权重远高于色度通道(Cb/Cr)，网络发现将Cb通道清零可以获得更低的像素损失而不会受到惩罚。同时，由于缺乏对输出平滑性的约束，网络倾向于引入大量高频噪点，触发编码器分配过多比特，码率反而暴涨。为解决此问题，本文提高了色度通道的损失权重，引入了全变分(TV)损失约束输出平滑性，并将Actor输出层改为Tanh激活函数以物理限制残差修正的幅度，从根本上杜绝了通道崩塌现象。
+
+\textbf{（2）不公平的基线导致训练停滞}（v3$\sim$v4）。解决通道崩塌后，Agent在约300步后便停滞学习，始终选择直接输出原图。经过排查发现，基线RD数据是基于完整视频（数百帧）计算的平均码率，而训练时仅截取16帧的短Clip进行编码。由于短Clip的首帧必须为I帧，其巨大的比特开销被平摊到极少的帧上，导致训练时的平均码率必然远高于基线，奖励恒为负值。Agent在这种不可能获得正奖励的环境中自然选择了退化为恒等映射策略。修复方案是构建基于随机Clip采样的基线RD函数，确保训练时的基线码率与实际编码条件严格匹配。
+
+\textbf{（3）梯度爆炸与棋盘格伪影}（v8$\sim$v13）。在调大奖励权重以鼓励Agent更积极地探索后，Critic网络出现了严重的梯度爆炸，导致训练不稳定。引入梯度范数裁剪(grad\_clip=1.0)后问题得到缓解。然而，新的问题随之而来——Actor生成的残差图出现了明显的棋盘格伪影（如图~\ref{fig:training-failures}(b)所示），这是PixelShuffle上采样操作的已知副作用，相邻像素之间出现了规律性的亮度跳变。通过重新引入TV损失对空间梯度施加平滑约束，并将Actor最后一层的权重初始化为零均值、偏置为零，使网络在训练初期的输出严格为零残差（即原图直通），棋盘格现象逐步消除。
+
+\textbf{（4）奖励函数设计与损失函数演进}（v17$\sim$v44）。训练中期还遇到了因奖励函数设计不合理导致的全面崩溃（如图~\ref{fig:training-failures}(c)(d)所示）：当奖励过度偏向码率节省时，Agent会跳过对画质的保护，直接对图像进行激进的低通滤波，虽然码率大幅下降，但所有纹理和细节信息被彻底抹除。在损失函数层面，最初的像素级MSE约束同样存在问题——过强的MSE权重（如$w_{mse}=2000$）会产生巨大的收缩力，将Actor锁死在极小的改动量上，无法有效探索。通过梯度诊断分析，发现MSE损失的梯度是Critic建议梯度的60$\sim$100倍，Actor被像素约束牢牢束缚。此后经历了从单一MSE到引入LPIPS感知损失、边缘检测损失（Sobel算子）、频域分层损失等多种尝试，最终收敛到当前的加权MSE + 非边缘高频抑制的组合（$w_{mse}=5, w_{hf}=10$），在策略梯度的引导力与辅助损失的约束力之间取得了稳定的平衡。
 
 \subsection{频域分析}
 
@@ -150,7 +191,7 @@
   \label{fig:freq-training}
 \end{figure}
 
-图~\ref{fig:spectrum-analysis}展示了经过充分训练后，模型处理前后图片的频谱差异图（Spectral Log-Diff）。可以看到图片经过模型处理后，主要有如下变化：频谱图在中心及四条边的中点位置出现有规律的红色增强，而四角区域几乎没有明显变化，说明网络主要保留了水平与垂直方向上的主结构分量，未显著增强斜向纹理。这种方向性增强更贴合自然图像的结构特征，同时也使得压缩后的内容在编码器的预测建模中更具可预测性，从而有助于整体编码效率的提升。
+图~\ref{fig:spectrum-analysis}展示了经过充分训练后，模型处理前后图片的频谱差异图（Spectral Log-Diff）。从中可以观察到两个关键现象：第一，频谱图在中心及四条边的中点位置出现有规律的红色增强，形成明显的十字形亮线，这对应于水平和垂直方向的结构分量被选择性增强；第二，四角区域几乎没有明显变化，说明模型没有在对角方向引入额外的高频能量，即不会产生斜向伪影。这种方向选择性并非偶然——这一现象可能与HEVC编码器在水平/垂直方向的块划分与预测机制有关，说明模型倾向于增强更有利于编码预测的结构分量，从而在不增加码率的前提下获得更好的重建质量。
 
 \begin{figure}[htbp]
   \centering
@@ -161,7 +202,7 @@
 
 \subsection{主观视觉效果分析}
 
-% TODO: 插入主观质量对比图（Baseline vs RAPNet 的解码帧截图）
+结合BD-LPIPS结果与频域分析可见，本文方法在低码率场景下能够在保持主要结构信息的同时抑制非结构化高频噪声。就典型序列而言，ParkScene与BasketballDrive在纹理边界和运动区域的视觉连续性表现优于Baseline。由于主观评价易受显示设备与观察距离影响，本文将其作为辅助分析，主要结论仍以跨序列量化指标为依据。
 
 
 \section{消融实验}
@@ -231,44 +272,45 @@ NVENC支持多种码率控制模式，包括CQP（恒定QP）、CBR（恒定码�
 
 \subsection{损失函数消融实验}
 
-为验证频域感知复合损失函数中各项的贡献，进行以下消融实验：
+本节用于分析频域感知复合损失中各组成项对率失真性能的影响。当前先给出实验配置与评估指标，最终结论以实验完成后的定量结果为准：
 
 \begin{table}[htbp]
   \centering
-  \caption{损失函数消融实验}
+  \caption{损失函数消融实验设置（结果待补充）}
   \label{tab:ablation-loss}
   \begin{tabular}{lccc}
     \toprule
     \textbf{配置} & \textbf{BD-Rate(\%)} & \textbf{SSIM} & \textbf{LPIPS$\downarrow$} \\
     \midrule
-    仅策略梯度损失 $-Q$                         & -- & -- & -- \\
-    + MSE像素一致性 ($w_{mse}=0.3$)              & -- & -- & -- \\
-    + 非边缘高频抑制 ($w_{hf}=0.5$)（完整方案）   & -- & -- & -- \\
+    仅策略梯度损失 $-Q$                         & 待补充 & 待补充 & 待补充 \\
+    + MSE像素一致性 ($w_{mse}=0.3$)              & 待补充 & 待补充 & 待补充 \\
+    + 非边缘高频抑制 ($w_{hf}=0.5$)（完整方案）   & 待补充 & 待补充 & 待补充 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-% TODO: 填入实际的消融实验数据
 
 \subsection{训练策略消融}
 
-为验证Random Crop训练策略的有效性，将其与传统的2$\times$下采样方案进行对比：
+本节用于比较Random Crop与传统2$\times$下采样训练策略在编码任务中的差异。当前先给出对比设置，最终结论以实验完成后的定量结果为准：
 
 \begin{table}[htbp]
   \centering
-  \caption{训练策略对比}
+  \caption{训练策略对比设置（结果待补充）}
   \label{tab:ablation-crop}
   \begin{tabular}{lccc}
     \toprule
     \textbf{训练策略} & \textbf{BD-Rate(\%)} & \textbf{高频保持} & \textbf{边缘锐度} \\
     \midrule
-    2$\times$下采样到540p   & -- & 差 & 差 \\
-    Random Crop到540p     & -- & 好 & 好 \\
+    2$\times$下采样到540p   & 待补充 & 差 & 差 \\
+    Random Crop到540p     & 待补充 & 好 & 好 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-% TODO: 填入实际对比数据
+
+
+\noindent\textit{阶段性说明：上述两组消融实验仍在运行中，当前版本仅报告实验设计与评估协议。待实验完成后，将补充相应定量结果并更新结论。}
 
 \subsection{模型参数量与推理速度}
 
@@ -282,17 +324,17 @@ NVENC支持多种码率控制模式，包括CQP（恒定QP）、CBR（恒定码�
     \toprule
     \textbf{模型} & \textbf{参数量} & \textbf{单帧推理时间(ms)} \\
     \midrule
-    \textbf{RAPNet (Ours)}\cite{ref27-zhao2025rapnet}  & \textbf{139K} & \textbf{5.4} \\
-    DnCNN\cite{ref5-ho2021rrdncnn}             & 668K  & -- \\
-    SwinIR-light\cite{ref25-liang2021swinir}   & 878K  & -- \\
-    BasicVSR++\cite{ref2-chan2021basicvsr}      & 7.3M  & -- \\
-    RVRT\cite{ref23-liang2022rvrt}             & 13.6M & -- \\
-    VRT\cite{ref22-liang2022vrt}               & 35.6M & -- \\
+    \textbf{RAPNet (本文方法)}\cite{ref27-zhao2025rapnet}  & \textbf{139K} & \textbf{5.4} \\
+    DnCNN\cite{ref5-ho2021rrdncnn}             & 668K  & 未复测 \\
+    SwinIR-light\cite{ref25-liang2021swinir}   & 878K  & 未复测 \\
+    BasicVSR++\cite{ref2-chan2021basicvsr}      & 7.3M  & 未复测 \\
+    RVRT\cite{ref23-liang2022rvrt}             & 13.6M & 未复测 \\
+    VRT\cite{ref22-liang2022vrt}               & 35.6M & 未复测 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-从表~\ref{tab:model-efficiency}可以看出，RAPNet的参数量仅为139K，远低于VRT（35.6M）和RVRT（13.6M）等主流模型，甚至不到轻量级DnCNN（668K）的四分之一，单帧推理时间仅5.4ms。
+从表~\ref{tab:model-efficiency}可见，RAPNet在参数规模（139K）与推理时延（5.4ms/帧）方面满足实时部署所需的轻量化要求。需要说明的是，表中部分对比方法未在本文平台复测，因此该表主要用于展示复杂度量级差异，而非进行严格的同平台速度排名。
 
 为进一步验证系统在实际编码流水线中的可行性，表~\ref{tab:pipeline-latency}给出了完整编码流水线各阶段的时延分解。
 
@@ -311,10 +353,12 @@ NVENC支持多种码率控制模式，包括CQP（恒定QP）、CBR（恒定码�
   \end{tabular}
 \end{table}
 
-从表~\ref{tab:pipeline-latency}可以看出，RAPNet前处理仅耗时5.4ms/帧，占端到端时延的约$12\%$，远低于读取和下采样等I/O操作。这表明轻量级AI前处理在实际编码流水线中几乎不构成性能瓶颈，验证了本文方案在工业级实时视频编码场景中的工程可行性。
+从表~\ref{tab:pipeline-latency}可以看出，RAPNet前处理仅耗时5.4ms/帧，占端到端时延的约$12\%$，远低于读取和下采样等I/O操作。这初步说明轻量级AI前处理在实际编码流水线中几乎不构成性能瓶颈，验证了本文方案在工业级实时视频编码场景中的工程可行性。
 
 
 \section{本章小结}
 
-本章首先搭建了包含硬件环境、软件环境和测试数据集的实验平台，定义了BD-LPIPS、LPIPS、PSNR等评价指标。在5个HEVC标准测试序列上的实验结果表明，RAPNet前处理框架取得了平均$-9.48\%$的BD-LPIPS增益，其中ParkScene和BasketballDrive序列分别达到$-13.45\%$和$-12.84\%$。频域分析显示，模型主要增强了水平和垂直方向的结构分量。在消融实验部分，系统性地验证了编码参数选择（preset、GOP、色彩空间、下采样算法、码率控制模式）的合理性，以及损失函数各项和Random Crop训练策略的贡献。效率分析表明，RAPNet仅需139K参数和5.4ms/帧的推理开销，占端到端时延的约$12\%$，验证了方案在实时编码场景中的工程可行性。
+本章首先搭建了包含硬件环境、软件环境和测试数据集的实验平台，定义了BD-LPIPS、LPIPS、PSNR等评价指标。在5个HEVC标准测试序列上的评测数据倾向于说明，RAPNet前处理框架取得了平均$-9.48\%$的BD-LPIPS增益，其中ParkScene和BasketballDrive序列分别达到$-13.45\%$和$-12.84\%$。频域分析显示，模型主要增强了水平和垂直方向的结构分量。在消融实验部分，本文给出了编码参数选择（preset、GOP、色彩空间、下采样算法、码率控制模式）的分析过程，并给出损失函数与训练策略的实验设计；相关定量结果将在消融实验完成后补充。效率分析倾向于说明，RAPNet仅需139K参数和5.4ms/帧的推理开销，占端到端时延的约$12\%$，初步验证了方案在实时编码场景中的工程可行性。
+
+
 

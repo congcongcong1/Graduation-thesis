@@ -1,6 +1,7 @@
 \chapter{系统设计与实现}
 
-本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。系统的核心思想是将不可导的硬件编码器(NVENC)纳入到强化学习的优化回路中，通过"编码器感知"的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
+本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。在进入具体设计之前，有必要说明本方案的选型过程。在项目早期，笔者首先尝试了基于监督学习的率感知预处理方案RPP\cite{ref17-ma2023rateperception}。RPP通过自适应DCT损失函数智能去除高频冗余，在原生分辨率、软件编码器(x265)的测试中取得了显著的BD-Rate收益。然而，将其部署到NVENC硬件编码器的2$\times$下采样流水线中时，效果却不如纯硬件基线方案。经过深入的频谱分析和反复调试，笔者定位到两个根本性问题：其一，RPP的DCT优化策略是基于输入分辨率设计的，在4K尺度下被判定为可以牺牲的中频纹理，恰恰是下采样后1080p画面中仅存的清晰度来源，导致处理后画面严重发糊；其二，RPP输出的低方差平滑信号触发了NVENC码率控制算法的误判——硬件编码器将其识别为平坦区域并激进地提高QP，最终造成块效应和色带，画质严重过平滑并伴随明显块状伪影。这一失败经验说明，基于监督学习的前处理方案本质上无法感知编码器的行为，必须引入一种能够将编码器纳入优化回路的训练范式。因此本文最终选择强化学习框架：将不可导的NVENC视为黑盒环境，通过编码器感知的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
+
 
 % ============================================================
 % 【示例：如何插入图片】
@@ -48,9 +49,9 @@
 
 \section{Random Crop训练策略}
 
-在早期的系统设计中，训练时采用2$\times$下采样将1080p视频缩小为540p进行编码。然而，下采样操作不可避免地丢失了原始视频的高频纹理和边缘细节，导致模型难以学习到精细的增强策略。
+在早期的系统设计中，训练时采用2$\times$下采样将1080p视频缩小为540p进行编码。在该方案下，模型的PSNR指标有所提升，但主观观看时却发现画面边缘明显模糊、纹理细节丢失严重。对训练数据进行频谱分析表明问题主要来自：下采样操作直接截断了Nyquist频率以上的高频分量，导致模型从一开始就没有真实的高频纹理，自然也无法学会保护这些细节。这一失败经验促使笔者重新审视训练数据的构建方式。
 
-本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$540 \times 960$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
+为此，本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$540 \times 960$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
 
 \begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}]
 def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
@@ -80,7 +81,7 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 
 \section{复合奖励函数设计}
 
-针对低码率场景下"主观画质"与"传输带宽"的博弈难题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
+针对低码率场景下主观画质与传输带宽的博弈难题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
 
 \begin{equation}
   R_{total} = \alpha \cdot \frac{V_{cur} - V_{ref}}{|V_{ref}|} + \beta \cdot \frac{R_{ref} - R_{cur}}{R_{ref}}
@@ -146,11 +147,11 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
   \label{eq:tv-loss}
 \end{equation}
 
-其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。训练中各损失权重设置为$w_{\text{mse}} = 0.3$、$w_{\text{hf}} = 0.5$、$w_{\text{TV}} = 0.1$。
+其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。训练中各损失权重设置为$w_{\text{mse}} = 5$、$w_{\text{hf}} = 10$、$w_{\text{TV}} = 0.1$。
 
 \section{RAPNet网络架构}
 
-RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量严格控制在1M以内。本项目摒弃了计算开销巨大的Transformer架构\cite{ref22-liang2022vrt}，创新性地选用了具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。完整的网络架构如图~\ref{fig:actor-critic-system}所示。
+RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量为139K。相较于计算开销较大的Transformer架构\cite{ref22-liang2022vrt}，本文采用具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。完整的网络架构如图~\ref{fig:actor-critic-system}所示。
 
 \begin{figure}[htbp]
   \centering
@@ -161,7 +162,7 @@ RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用�
 
 \subsection{Actor网络(RAPNet)结构}
 
-RAPNet采用"PixelUnshuffle → 残差学习 → PixelShuffle"的编码-解码结构：
+RAPNet采用“PixelUnshuffle → 残差学习 → PixelShuffle”的编码-解码结构：
 
 \begin{enumerate}
   \item \textbf{输入层}：PixelUnshuffle将$(1, H, W)$重排为$(4, H/2, W/2)$，随后通过$3 \times 3$卷积 + LeakyReLU提取浅层特征；
