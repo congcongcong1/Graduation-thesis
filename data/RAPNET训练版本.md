@@ -5,7 +5,7 @@
 
 # ElegantRL-master/my_RL/runs/rapnet_hevc_12_12_V2 v2版本：
 损失为pixel_loss = 6.0 * pixel_loss_y + 3*pixel_loss_cb + 3*pixel_loss_cr
-出现问题：cb通道直接全部被切断为0,并且码率出现暴涨的情况
+出现问题：cb通道直![alt text](image.png)接全部被切断为0,并且码率出现暴涨的情况
 
 # ElegantRL-master/my_RL/runs/rapnet_hevc_12_13_v3 v3版本：
 新增函数 total_variation_loss 这个 Loss 会迫使 Actor 生成“干净”的图像，直接解决码率暴涨的问题

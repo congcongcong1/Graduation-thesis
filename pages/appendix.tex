@@ -1,47 +1,198 @@
 % 附录
-\chapter{测试}
+\chapter{关键实现说明}
 
-\section{公式测试}
-\section{公式测试}
+由于完整工程代码体量较大，且包含训练脚本、模型定义、编码调用与评估工具等多个部分，为避免影响论文主体的连贯性，本文仅在附录中给出核心模块的详细结构、伪代码、主要参数配置及关键运行命令。完整代码作为毕业设计附件单独提交。
 
-\begin{equation}
-  a^2 + b^2 = c^2
-\end{equation}
+% ============================================================
+\section{RAPNet (Actor) 详细网络结构}
+% ============================================================
 
-\chapter{测试}
+RAPNet采用``Pixel Unshuffle $\rightarrow$ 残差卷积 $\rightarrow$ Pixel Shuffle''的三段式架构，在低分辨率特征空间完成残差增强后映射回原分辨率。各层的具体参数如表~\ref{tab:rapnet-detail}所示。
 
-\section{公式测试}
-\subsection{编号测试}
-\subsection{编号测试}
-\subsubsection{编号测试}
-\subsubsection{编号测试}
-
-\section{公式测试}
-
-\begin{equation}\label{equation:appendix-test}
-  a^2 + b^2 = c^2
-\end{equation}
-
-公式~\eqref{equation:appendix-test}
-
-
-\chapter{数据}
-
-\section{第一个测试}
-测试公式编号
-\begin{equation}
-  1+1=2.
-\end{equation}
-
-表格编号测试
-
-\begin{table}[h]
+\begin{table}[htbp]
   \centering
-  \caption{测试表格}
-  \begin{tabular}{*{5}c}
-    \hline
-    11 & 13  & 13  & 13  & 13 \\
-    12 & 14  & 13  & 13  & 13 \\
-    \hline
+  \caption{RAPNet (Actor) 网络结构详情（$\text{scale}=2$时，$C_{in}=3 \times 2^2 = 12$）}
+  \label{tab:rapnet-detail}
+  \begin{tabular}{llccl}
+    \toprule
+    \textbf{阶段} & \textbf{层名称} & \textbf{输入$\rightarrow$输出通道} & \textbf{核/步长/填充} & \textbf{激活} \\
+    \midrule
+    色度上采样 & \texttt{upsample\_chroma} & $(1,H/2,W/2)\rightarrow(1,H,W)$ & Bilinear $\times 2$ & — \\
+    \midrule
+    空间折叠 & \texttt{PixelUnshuffle(2)} & $(3,H,W)\rightarrow(12,H/2,W/2)$ & — & — \\
+    \midrule
+    主干入口 & \texttt{head} (Conv2d) & $12 \rightarrow 16$ & $3\times3$ / 1 / 1 & LeakyReLU(0.1) \\
+    \midrule
+    \multirow{2}{*}{残差体$\times 5$} & \texttt{body[i].conv1} & $16 \rightarrow 16$ & $3\times3$ / 1 / 1 & LeakyReLU(0.1) \\
+     & \texttt{body[i].conv2} & $16 \rightarrow 16$ & $3\times3$ / 1 / 1 & 残差连接 \\
+    \midrule
+    主干出口 & \texttt{tail} (Conv2d) & $16 \rightarrow 12$ & $3\times3$ / 1 / 1 & — \\
+    \midrule
+    空间展开 & \texttt{PixelShuffle(2)} & $(12,H/2,W/2)\rightarrow(3,H,W)$ & — & — \\
+    \midrule
+    残差限幅 & $\delta = \tanh(\cdot) \times 0.05$ & — & — & Tanh \\
+    色度均值归零 & $\delta_{Cb/Cr} \mathrel{-}= \text{mean}(\delta_{Cb/Cr})$ & — & — & — \\
+    \midrule
+    色度下采样 & \texttt{downsample\_chroma} & $(1,H,W)\rightarrow(1,H/2,W/2)$ & Bilinear $\times 0.5$ & — \\
+    \bottomrule
   \end{tabular}
 \end{table}
+
+总参数量约139K。其中5个ResBlock贡献了主要参数量（每个ResBlock含两层$16\rightarrow16$的Conv2d，参数$2\times(16\times16\times3\times3+16) = 4\,640$，五个共$23\,200$），head/tail的$12\leftrightarrow16$通道转换各贡献约$1\,744 / 1\,740$参数。
+
+% ============================================================
+\section{ValueNet (Critic) 详细网络结构}
+% ============================================================
+
+ValueNet采用双分支对称结构，分别对原始帧（状态$s$）和增强帧（动作$a$）提取特征，拼接后进行融合，最终输出标量Q值。各层的具体参数如表~\ref{tab:valuenet-detail}所示。
+
+\begin{table}[htbp]
+  \centering
+  \caption{ValueNet (Critic) 网络结构详情}
+  \label{tab:valuenet-detail}
+  \begin{tabular}{llccl}
+    \toprule
+    \textbf{阶段} & \textbf{层名称} & \textbf{输入$\rightarrow$输出通道} & \textbf{核/步长/填充} & \textbf{激活} \\
+    \midrule
+    \multirow{2}{*}{输入分支} & \texttt{branch\_in.conv1} & $3 \rightarrow 32$ & $3\times3$ / 1 / 1 & LeakyReLU(0.1) \\
+     & \texttt{branch\_in.conv2} & $32 \rightarrow 32$ & $3\times3$ / 1 / 1 & — \\
+    \midrule
+    \multirow{2}{*}{输出分支} & \texttt{branch\_out.conv1} & $3 \rightarrow 32$ & $3\times3$ / 1 / 1 & LeakyReLU(0.1) \\
+     & \texttt{branch\_out.conv2} & $32 \rightarrow 32$ & $3\times3$ / 1 / 1 & — \\
+    \midrule
+    特征拼接 & \texttt{cat(in, out)} & $32+32=64$ & — & — \\
+    融合卷积 & \texttt{fusion\_conv} & $64 \rightarrow 64$ & $3\times3$ / 1 / 1 & LeakyReLU(0.1) \\
+    \midrule
+    全局池化 & \texttt{AdaptiveAvgPool2d(1)} & $(64,H,W)\rightarrow(64,1,1)$ & — & — \\
+    时间平均 & $\text{mean}(\cdot, \text{dim}=T)$ & $(B,T,64)\rightarrow(B,64)$ & — & — \\
+    \midrule
+    \multirow{2}{*}{MLP头} & \texttt{head.fc1} & $64 \rightarrow 64$ & — & ReLU \\
+     & \texttt{head.fc2} & $64 \rightarrow 1$ & — & — \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ============================================================
+\section{损失权重与训练超参数}
+% ============================================================
+
+模型在DDPG风格的Actor-Critic训练框架中使用的完整超参数配置如表~\ref{tab:hyperparams}所示。这些参数源自最终收敛版本（v44），此前经历了近50个版本的迭代调参。
+
+\begin{table}[htbp]
+  \centering
+  \caption{训练主要超参数配置}
+  \label{tab:hyperparams}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{类别} & \textbf{超参数} & \textbf{设定值} \\
+    \midrule
+    \multirow{4}{*}{迭代与数据}
+      & 训练总迭代次数 & $20\,000$ \\
+      & 每次采样帧数 (clip\_len) & 16 \\
+      & 输入分辨率 & $1920 \times 1080$ \\
+      & Random Crop裁剪尺寸 & $960 \times 540$ \\
+    \midrule
+    \multirow{4}{*}{学习率}
+      & Actor学习率 $\eta_{Actor}$ & $1 \times 10^{-5}$ \\
+      & Critic学习率 $\eta_{Critic}$ & $2 \times 10^{-5}$ \\
+      & 学习率衰减步长 & 每1000 iter \\
+      & 学习率衰减因子 $\gamma$ & $1/3$ \\
+    \midrule
+    \multirow{3}{*}{奖励函数}
+      & 质量权重 $\alpha$ & $8$ \\
+      & 码率权重 $\beta$ & $2$ \\
+      & QP测试点集 $\mathcal{Q}$ & $\{37, 40, 42, 45, 47\}$ \\
+    \midrule
+    \multirow{3}{*}{Actor损失权重}
+      & MSE结构损失 $w_{mse}$ & $5$ \\
+      & 非边缘高频抑制 $w_{hf}$ & $10$ \\
+      & TV平滑损失 $w_{TV}$ & $0.1$ \\
+    \midrule
+    \multirow{2}{*}{残差限幅}
+      & Tanh缩放系数 & $0.05$（即$\pm 5\%$） \\
+      & Cb/Cr通道 & 零均值约束 \\
+    \midrule
+    \multirow{2}{*}{硬件分配}
+      & Actor & GPU 0 (cuda:0) \\
+      & Critic & GPU 1 (cuda:1) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ============================================================
+\section{FFmpeg编码/解码命令示例}
+% ============================================================
+
+训练环路中的编码与解码通过Python \texttt{subprocess}调用FFmpeg完成。以下是从代码中提取的典型FFmpeg命令结构：
+
+\noindent\textbf{编码命令}（NVENC HEVC硬件编码，恒定QP模式）：
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\small,breaklines=true]
+ffmpeg -y \
+  -f rawvideo -pix_fmt yuv420p \
+  -s:v 960x540 -r 120 \
+  -i input_crop.yuv \
+  -c:v hevc_nvenc \
+  -rc constqp -qp 42 \
+  -preset p4 -profile:v main \
+  -pix_fmt yuv420p \
+  output.hevc
+\end{lstlisting}
+
+\noindent\textbf{解码命令}（HEVC $\rightarrow$ 原始YUV420）：
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\small,breaklines=true]
+ffmpeg -y \
+  -i output.hevc \
+  -f rawvideo -pix_fmt yuv420p \
+  decoded.yuv
+\end{lstlisting}
+
+\noindent 其中，\texttt{-rc constqp}表示恒定QP码率控制模式（训练阶段遍历$\mathcal{Q}=\{37,40,42,45,47\}$共5个QP点取平均奖励），\texttt{-preset p4}对应NVENC的Medium编码预设，\texttt{-r 120}为训练序列原始帧率。
+
+% ============================================================
+\section{核心代码文件目录说明}
+% ============================================================
+
+项目工程的主要代码文件组织结构如下：
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+COdec/
++-- data/
+|   +-- rapnet_hevc_ppo_qp_yuv_1080p_v2.py
+|   |     # 强化学习主训练脚本
+|   |     # 包含: RAPNetYCbCr (Actor),
+|   |     #       ValueNetYCbCrPair (Critic),
+|   |     #       DeterministicActorCriticAgent,
+|   |     #       HEVCNvencEnvironment,
+|   |     #       train_loop()
+|   +-- eval_rapnet_comprehensive.py
+|   |     # BD-LPIPS/BD-Rate 综合评估脚本
+|   +-- generate_baseline_rd.py
+|   |     # 基线RD曲线生成工具
+|   +-- run_ablation_3variants.py
+|         # 消融实验自动化执行脚本
++-- test_sequences/
+|   +-- Beauty_1920x1080_120fps.yuv
+|   +-- BQTerrace_1920x1080_60fps.yuv
+|   +-- BasketballDrive_1920x1080_50fps.yuv
+|   +-- Cactus_1920x1080_50fps.yuv
+|   +-- ParkScene_1920x1080_24fps.yuv
++-- checkpoints/
+|   +-- actor_iter*.pth    # Actor模型权重
+|   +-- critic_iter*.pth   # Critic模型权重
++-- requirements.txt       # Python依赖包
+\end{lstlisting}
+
+% ============================================================
+\chapter{代码提交说明}
+% ============================================================
+
+本课题相关代码包括模型训练代码（\texttt{rapnet\_hevc\_ppo\_qp\_yuv\_1080p\_v2.py}）、推理与评估脚本（\texttt{eval\_rapnet\_comprehensive.py}）、FFmpeg编码调用脚本及实验结果统计脚本。完整工程已随毕业设计材料一并提交，论文正文与附录主要用于说明关键实现思路与核心流程。
+
+如需复现实验结果，请确保以下环境配置：
+\begin{itemize}
+  \item NVIDIA GPU $\times$ 2（推荐RTX 4090或同等级别，显存$\geq$16GB）
+  \item CUDA 12.x + cuDNN 9.x
+  \item Python 3.10+, PyTorch 2.0+
+  \item FFmpeg 6.0+（需包含\texttt{hevc\_nvenc}编码器支持）
+  \item 关键Python包：\texttt{lpips}, \texttt{tensorboard}, \texttt{numpy}, \texttt{opencv-python}
+\end{itemize}

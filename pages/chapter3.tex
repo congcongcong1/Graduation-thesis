@@ -117,14 +117,14 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
 
 \begin{equation}
   \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}} + w_{\text{TV}} \cdot \mathcal{L}_{\text{TV}}
-  \label{eq:actor-loss}
+  \label{eq:actor-loss-full}
 \end{equation}
 
 各项的具体定义如下：
 
-\textbf{（1）策略梯度损失}$\mathcal{L}_{\text{policy}}$：旨在最大化Critic对当前动作的评分，引导网络生成高回报的增强帧：
+\textbf{（1）策略梯度损失}$\mathcal{L}_{\text{policy}}$：旨在最大化Critic对当前动作的评分，引导网络生成高回报的增强帧。通过最大化该估值（即在损失函数中取负号进行最小化），迫使Actor网络朝着Critic认为能够获得更高奖励的方向调整输出动作：
 \begin{equation}
-  \mathcal{L}_{\text{policy}} = -\mathbb{E}[V(s_t, f_{\text{Actor}}(s_t))]
+  \mathcal{L}_{\text{policy}} = -\mathbb{E}[Q_\phi(s_t, f_{\text{Actor}}(s_t))]
   \label{eq:policy-loss}
 \end{equation}
 
