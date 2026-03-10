@@ -1,0 +1,201 @@
+\begin{tikzpicture}[
+    >=stealth,
+    node distance=0.4cm and 0.3cm,
+    % --- Defines block styles (B&W Version) ---
+    vblock/.style={rectangle, rounded corners=1pt, draw=black, minimum width=0.6cm, minimum height=1.5cm, align=center, inner sep=2pt, font=\scriptsize, fill=white},
+    hblock/.style={rectangle, rounded corners=1pt, draw=black, minimum width=1.4cm, minimum height=0.6cm, align=center, font=\scriptsize, fill=white},
+    updown/.style={rectangle, rounded corners=1pt, draw=black, fill=white, minimum width=0.6cm, minimum height=1.0cm, align=center, inner sep=2pt, font=\scriptsize},
+    concat/.style={circle, draw=black, fill=white, inner sep=0pt, minimum size=0.4cm, font=\bfseries\footnotesize},
+    add/.style={circle, draw=black, fill=white, inner sep=0pt, minimum size=0.4cm},
+    img/.style={rectangle, draw=black, fill=white, minimum width=1.5cm, minimum height=1.0cm, align=center, font=\scriptsize},
+    % --- Colors (disabled to satisfy B&W requirement) ---
+    f_pups/.style={},
+    f_conv/.style={},
+    f_lrelu/.style={},
+    f_res/.style={},
+    f_pool/.style={},
+    f_linear/.style={},
+    f_flatten/.style={}
+]
+
+    % ==========================================
+    % 1. RAPNet (Actor)
+    % ==========================================
+    % Inputs
+    \node[img] (y_in1) {Image Y};
+    \node[below=0.1cm of y_in1, font=\footnotesize] (y_in1_lbl) {Input Y};
+    
+    \node[img, below=1.0cm of y_in1] (cbcr_in1) {Image\\CbCr};
+    \node[below=0.1cm of cbcr_in1, font=\footnotesize] (cbcr_in1_lbl) {Input CbCr};
+    
+    \node[concat, right=1.6cm of y_in1] (c1) {C};
+    \node[updown] (up1) at (c1 |- cbcr_in1) {\rotatebox{90}{Up}};
+
+    \draw[->] (y_in1.east) -- (c1.west) coordinate[pos=0.6] (branch1);
+    \draw[->] (cbcr_in1.east) -- (up1.west);
+    \draw[->] (up1.north) -- (c1.south);
+    
+    % Global skip connection branch point
+    \draw[fill=black] (branch1) circle (1.5pt);
+
+    % Main network
+    \node[vblock, f_pups, right=0.3cm of c1] (pu) {\rotatebox{90}{Pixel Unshuffle}};
+    \node[vblock, f_conv, right=0.15cm of pu] (a_conv1) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_lrelu, right=0.1cm of a_conv1] (a_relu1) {\rotatebox{90}{LeakyReLU}};
+    
+    \node[vblock, f_res, right=0.3cm of a_relu1] (res1) {\rotatebox{90}{ResBlock}};
+    \node[vblock, f_res, right=0.1cm of res1] (res2) {\rotatebox{90}{ResBlock}};
+    \node[vblock, f_res, right=0.1cm of res2] (res3) {\rotatebox{90}{ResBlock}};
+    \node[vblock, f_res, right=0.1cm of res3] (res4) {\rotatebox{90}{ResBlock}};
+    \node[vblock, f_res, right=0.1cm of res4] (res5) {\rotatebox{90}{ResBlock}};
+    
+    \node[vblock, f_conv, right=0.3cm of res5] (a_conv2) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_pups, right=0.15cm of a_conv2] (ps) {\rotatebox{90}{Pixel Shuffle}};
+    \node[vblock, f_lrelu, right=0.3cm of ps] (a_tanh) {\rotatebox{90}{Tanh}};
+
+    \node[add, right=0.6cm of a_tanh] (add1) {$\oplus$};
+
+    % Connections
+    \draw[-] (c1) -- (pu) (pu) -- (a_conv1) (a_conv1) -- (a_relu1) (a_relu1) -- (res1) (res1) -- (res2) (res2) -- (res3) (res3) -- (res4) (res4) -- (res5) (res5) -- (a_conv2) (a_conv2) -- (ps) (ps) -- (a_tanh);
+    \draw[->] (a_tanh) -- (add1);
+
+    % Global Skip Connection
+    \draw[->] (branch1) -- ++(0, 1.4cm) coordinate (skip_top) -| (add1.north);
+
+    % Outputs
+    \node[img, right=1.6cm of add1] (y_out1) {Image Y'};
+    \node[below=0.1cm of y_out1, font=\footnotesize] (y_out1_lbl) {Output Y};
+    
+    \node[img, below=1.0cm of y_out1] (cbcr_out1) {Image\\CbCr'};
+    \node[below=0.1cm of cbcr_out1, font=\footnotesize] (cbcr_out1_lbl) {Output CbCr};
+    
+    \draw[->] (add1.east) -- (y_out1.west) coordinate[midway] (branch2);
+    \draw[fill=black] (branch2) circle (1.5pt);
+    \node[updown] (down1) at (branch2 |- cbcr_out1) {\rotatebox{90}{Down}};
+    \draw[->] (branch2) -- (down1.north);
+    \draw[->] (down1.east) -- (cbcr_out1.west);
+
+    % RAPNet Label
+    \node[font=\bfseries\Large, align=center] at ([yshift=-1.2cm]res3.south) {RAPNet \\ (Actor)};
+
+
+    % ==========================================
+    % 2. ValueNet (Critic)
+    % ==========================================
+    
+    % 上分支
+    \node[img, below=3.2cm of cbcr_in1_lbl] (y_in2) {Image Y};
+    \node[below=0.1cm of y_in2, font=\footnotesize] (y_in2_lbl) {Input Y};
+    
+    \node[img, below=0.8cm of y_in2_lbl] (cbcr_in2) {Image\\CbCr};
+    \node[below=0.1cm of cbcr_in2, font=\footnotesize] (cbcr_in2_lbl) {Input CbCr};
+
+    \node[concat, right=1.6cm of y_in2] (c2) {C};
+    \node[updown] (up2) at (c2 |- cbcr_in2) {\rotatebox{90}{Up}};
+    
+    \draw[->] (y_in2.east) -- (c2.west);
+    \draw[->] (cbcr_in2.east) -- (up2.west);
+    \draw[->] (up2.north) -- (c2.south);
+
+    \node[vblock, f_conv, right=0.3cm of c2] (c_conv1) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_lrelu, right=0.1cm of c_conv1] (c_relu1) {\rotatebox{90}{LeakyReLU}};
+    \node[vblock, f_conv, right=0.3cm of c_relu1] (c_conv2) {\rotatebox{90}{Conv 3x3}};
+    
+    \draw[-] (c2) -- (c_conv1) (c_conv1) -- (c_relu1) (c_relu1) -- (c_conv2);
+
+    % 下分支
+    \node[img, below=0.8cm of cbcr_in2_lbl] (cbcr_out2) {Image\\CbCr'};
+    \node[below=0.1cm of cbcr_out2, font=\footnotesize] (cbcr_out2_lbl) {Output CbCr};
+    
+    \node[img, below=0.8cm of cbcr_out2_lbl] (y_out2) {Image Y'};
+    \node[below=0.1cm of y_out2, font=\footnotesize] (y_out2_lbl) {Output Y};
+
+    \node[concat, right=1.6cm of y_out2] (c3) {C};
+    \node[updown] (up3) at (c3 |- cbcr_out2) {\rotatebox{90}{Up}};
+    
+    \draw[->] (y_out2.east) -- (c3.west);
+    \draw[->] (cbcr_out2.east) -- (up3.west);
+    \draw[->] (up3.south) -- (c3.north);
+
+    \node[vblock, f_conv, right=0.3cm of c3] (c_conv3) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_lrelu, right=0.1cm of c_conv3] (c_relu2) {\rotatebox{90}{LeakyReLU}};
+    \node[vblock, f_conv, right=0.3cm of c_relu2] (c_conv4) {\rotatebox{90}{Conv 3x3}};
+    
+    \draw[-] (c3) -- (c_conv3) (c_conv3) -- (c_relu2) (c_relu2) -- (c_conv4);
+
+    % 合并
+    \path (c_conv2.east) -- (c_conv4.east) coordinate[midway] (c_mid);
+    \node[concat, right=0.8cm of c_mid] (c4) {C};
+    
+    \draw[->] (c_conv2.east) -| (c4.north);
+    \draw[->] (c_conv4.east) -| (c4.south);
+
+    \node[vblock, f_conv, right=0.4cm of c4] (c_conv5) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_lrelu, right=0.1cm of c_conv5] (c_relu_fusion) {\rotatebox{90}{LeakyReLU}};
+    \node[vblock, f_pool, right=0.1cm of c_relu_fusion] (c_pool) {\rotatebox{90}{AvgPool}};
+    \node[vblock, f_flatten, right=0.3cm of c_pool] (c_flat) {\rotatebox{90}{Flatten}};
+    \node[vblock, f_linear, right=0.1cm of c_flat] (c_lin1) {\rotatebox{90}{Linear}};
+    \node[vblock, f_lrelu, right=0.1cm of c_lin1] (c_relu3) {\rotatebox{90}{ReLU}};
+    \node[vblock, f_linear, right=0.1cm of c_relu3] (c_lin2) {\rotatebox{90}{Linear}};
+
+    \draw[-] (c4) -- (c_conv5) (c_conv5) -- (c_relu_fusion) (c_relu_fusion) -- (c_pool) (c_pool) -- (c_flat) (c_flat) -- (c_lin1) (c_lin1) -- (c_relu3) (c_relu3) -- (c_lin2);
+
+    % Critic 输出预测值
+    \node[right=0.4cm of c_lin2, align=center, font=\footnotesize] (qval) {Predicted\\Q Value};
+    \draw[->] (c_lin2.east) -- (qval.west);
+    
+    \node[font=\bfseries\Large, align=center, right=0.4cm of qval] {ValueNet \\ (Critic)};
+
+
+    % ==========================================
+    % 3. ResBlock 细节内联图 (左下角)
+    % ==========================================
+    \node[vblock, f_conv, minimum height=1.3cm] at ([xshift=2cm, yshift=-4.0cm]c_conv4.south) (rb_conv1) {\rotatebox{90}{Conv 3x3}};
+    \node[vblock, f_lrelu, minimum height=1.3cm, right=0.2cm of rb_conv1] (rb_relu) {\rotatebox{90}{LeakyReLU}};
+    \node[vblock, f_conv, minimum height=1.3cm, right=0.2cm of rb_relu] (rb_conv2) {\rotatebox{90}{Conv 3x3}};
+    \node[add, right=0.4cm of rb_conv2] (rb_add) {$\oplus$};
+
+    \draw[-] (rb_conv1.east) -- (rb_relu.west);
+    \draw[-] (rb_relu.east) -- (rb_conv2.west);
+    \draw[->] (rb_conv2.east) -- (rb_add.west);
+
+    % ResBlock 跳连
+    \draw[-] ([xshift=-0.5cm]rb_conv1.west) coordinate (rb_start) -- (rb_conv1.west);
+    \draw[fill=black] (rb_start) circle (1.5pt);
+    \draw[->] (rb_start) -- ++(0, 1.1cm) -| (rb_add.north);
+    \draw[->] (rb_add.east) -- ++(0.5cm,0);
+    
+    % 半透明背景框 - ResBlock
+    \coordinate (rb_top) at ([yshift=1.2cm]rb_conv1.north);
+    \coordinate (rb_left) at ([xshift=-0.5cm]rb_conv1.west);
+    \coordinate (rb_bottom) at ([yshift=-0.8cm]rb_conv1.south);
+    \begin{scope}[on background layer]
+        \node [fill=white, draw=black, dashed, rounded corners, inner sep=0.35cm, fit=(rb_conv1) (rb_add) (rb_top) (rb_left) (rb_bottom)] (rb_bg) {};
+        \node [font=\bfseries, align=center, yshift=0.35cm] at (rb_bg.south) {ResBlock};
+    \end{scope}
+
+    % ==========================================
+    % 4. 右下角图例 (Legend)
+    % ==========================================
+    \node[rectangle, draw=black, rounded corners, fill=white, inner sep=0.3cm, right=1.2cm of rb_bg, anchor=west] (legend) {
+        \begin{tabular}{cl}
+            \tikz[baseline=-0.1cm]{\node[add] {$\oplus$};} & Element-wise Addition \\
+            \tikz[baseline=-0.1cm]{\node[concat] {C};} & Concatenation \\
+            \tikz[baseline=-0.2cm]{\node[updown, minimum height=0.6cm] {Up/Down};} & Bilinear Interpolation \\
+            \tikz[baseline=-0.2cm]{\node[vblock, minimum height=0.6cm, minimum width=1.4cm] {Flatten};} & Feature vectorization \\
+        \end{tabular}
+    };
+    
+    % ==========================================
+    % 5. 大背景
+    % ==========================================
+    \begin{scope}[on background layer]
+        % RAPNet 背景
+        \node [fill=gray!5, draw=black, dashed, rounded corners, fit=(y_in1) (cbcr_in1_lbl) (up1) (ps) (add1) (y_out1) (cbcr_out1_lbl) (down1) (skip_top), inner xsep=0.4cm, inner ysep=0.4cm] (actor_bg) {};
+        
+        % ValueNet 背景
+        \node [fill=gray!5, draw=black, dashed, rounded corners, fit=(y_in2) (cbcr_in2_lbl) (y_out2_lbl) (cbcr_out2_lbl) (c_conv5) (c_lin2) (qval), inner xsep=0.4cm, inner ysep=0.4cm] (critic_bg) {};
+        
+    \end{scope}
+
+\end{tikzpicture}
