@@ -2,29 +2,54 @@
 
 本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。在进入具体设计之前，有必要说明本方案的选型过程。在项目早期，笔者首先尝试了基于监督学习的率感知预处理方案RPP\cite{ref17-ma2023rateperception}。RPP通过自适应DCT损失函数智能去除高频冗余，在原生分辨率、软件编码器(x265)的测试中取得了显著的BD-Rate收益。然而，将其部署到NVENC硬件编码器的2$\times$下采样流水线中时，效果却不如纯硬件基线方案。经过深入的频谱分析和反复调试，笔者定位到两个根本性问题：其一，RPP的DCT优化策略是基于输入分辨率设计的，在4K尺度下被判定为可以牺牲的中频纹理，恰恰是下采样后1080p画面中仅存的清晰度来源，导致处理后画面严重发糊；其二，RPP输出的低方差平滑信号触发了NVENC码率控制算法的误判——硬件编码器将其识别为平坦区域并激进地提高QP，最终造成块效应和色带，画质严重过平滑并伴随明显块状伪影。这一失败经验说明，基于监督学习的前处理方案本质上无法感知编码器的行为，必须引入一种能够将编码器纳入优化回路的训练范式。因此本文最终选择强化学习框架：将不可导的NVENC视为黑盒环境，通过编码器感知的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
 
-
-% ============================================================
-% 【示例：如何插入图片】
-% 将图片文件放入项目根目录的 data/ 文件夹中
-% ============================================================
-% \begin{figure}[htbp]
-%   \centering
-%   \includegraphics[width=0.85\textwidth]{data/system_overview.png}
-%   \caption{基于Actor-Critic架构的视频前处理优化系统框图}
-%   \label{fig:system-overview}
-% \end{figure}
-
 \section{系统总体架构}
 
-本文提出的协处理系统整体框架如图~\ref{fig:pipeline}所示，主要由三个部分组成。前端为\textbf{轻量级AI前处理模块}(RAPNet)\cite{ref27-zhao2025rapnet}，采用基于强化学习的码率自适应前处理网络，在编码前对原始视频帧进行智能增强。中间为\textbf{硬件编码器}(NVENC)，利用NVIDIA GPU中的专用编码引擎对增强后的视频进行H.265编码\cite{ref10-sullivan2012hevc}。后端为\textbf{AI后处理模块}，在解码端对重建视频进行质量增强与超分辨率处理\cite{ref2-chan2021basicvsr}。三个模块协同工作，形成``前处理$\to$硬件编码$\to$后处理''的完整流水线。
+从物理处理链路看，系统以1080p原始YUV序列为输入，先由RAPNet执行编码前增强，再在固定QP控制下进入NVENC硬件编解码链路，最后以感知质量与码率指标对前处理收益进行对比评估。该过程如图~\ref{fig:macro-preprocess-flow}所示。图中同时给出了Baseline分支与前处理分支在同一编码环境下的输出结果，便于直接观察$\Delta V$与$\Delta R$的来源及其工程意义。
 
 \begin{figure}[htbp]
   \centering
-  \resizebox{\textwidth}{!}{\input{data/fig3_1_pipeline_code.tex}}
-  \caption{前后处理整体流程}
-  \label{fig:pipeline}
+  \resizebox{\textwidth}{!}{\input{pages/fig_macro_preprocess_flow.tex}}
+  \caption{总体前处理流程图}
+  \label{fig:macro-preprocess-flow}
 \end{figure}
 
+\section{Agent与Environment定义及强化学习反馈闭环}
+
+在本文系统中，Agent由Actor与Critic共同构成，而非单一网络。Actor对应RAPNet，负责在状态$s_t$下生成前处理动作$a_t$；Critic对应ValueNet，负责评估状态—动作对的价值并提供策略优化方向。其基本决策关系可写为
+\begin{equation}
+  a_t = \pi_{\theta}(s_t),
+  \label{eq:agent-action}
+\end{equation}
+\begin{equation}
+  q_t = Q_{\phi}(s_t, a_t),
+  \label{eq:agent-value}
+\end{equation}
+其中$\theta$与$\phi$分别表示Actor和Critic参数。式(\ref{eq:agent-action})给出策略生成机制，式(\ref{eq:agent-value})给出价值评估机制，二者构成策略学习的核心耦合关系。
+
+Environment由真实硬件编解码流程与质量评估模块共同定义，对应代码中的\texttt{NvencClipEnvQP}。在给定QP条件$q$下，环境对动作执行“编码—解码—评估”并返回奖励，可抽象为
+\begin{equation}
+  (s_{t+1}, r_t^{(q)}) = \mathcal{E}(s_t, a_t, q), \quad q \in \mathcal{Q},
+  \label{eq:env-step}
+\end{equation}
+其中$\mathcal{Q}=\{37,40,42,45,47\}$。单QP奖励采用质量增益与码率节省的线性加权形式
+\begin{equation}
+  r_t^{(q)} = \alpha \cdot \Delta V_t^{(q)} + \beta \cdot \Delta R_t^{(q)},
+  \label{eq:reward-qp-intro}
+\end{equation}
+式中$\Delta V_t^{(q)}$由感知质量指标计算（可配置为VMAF或LPIPS映射分数），$\Delta R_t^{(q)}$由Bitrate相对变化计算。跨QP训练时，采用平均回报作为最终反馈信号
+\begin{equation}
+  \bar{r}_t = \frac{1}{|\mathcal{Q}|}\sum_{q\in\mathcal{Q}} r_t^{(q)}.
+  \label{eq:reward-mean-intro}
+\end{equation}
+
+上述映射下的完整交互关系见图~\ref{fig:rl-closed-loop}。该闭环明确了状态输入、动作生成、环境执行、奖励构建与损失回传之间的先后依赖，是后续状态空间、动作空间与奖励函数建模的统一语义基础。
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{pages/fig_rl_closed_loop.tex}}
+  \caption{整体强化学习框架示意图}
+  \label{fig:rl-closed-loop}
+\end{figure}
 
 \section{状态空间与动作空间设计}
 
@@ -249,6 +274,17 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 \section{训练算法}
 
 本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的关键设计包括：
+
+\subsection{代码训练流程总览}
+
+在代码执行层面，训练Pipeline可归纳为“采样状态—生成动作—硬件评估—网络更新”的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。该执行链路如图~\ref{fig:code-training-overview}所示。
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{pages/fig3_1_pipeline_code.tex}}
+  \caption{代码训练流程总览}
+  \label{fig:code-training-overview}
+\end{figure}
 
 \begin{itemize}
   \item \textbf{多GPU协同}：Actor和Critic分别部署在不同GPU上，Critic更新完毕后将参数同步到GPU 0上的副本$Q_{\phi'}$（仅用于前向推理，不参与反向传播），避免跨GPU的自动求导断链问题；

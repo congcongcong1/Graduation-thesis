@@ -170,77 +170,46 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{强化学习基础}
 
-强化学习(Reinforcement Learning, RL)是一种通过智能体(Agent)与环境(Environment)交互来学习最优策略的机器学习范式。与监督学习依赖标注数据不同，强化学习通过试错(Trial and Error)的方式获取经验，并据此改进决策策略。
-
-\subsection{马尔可夫决策过程}
-
-强化学习问题通常建模为马尔可夫决策过程(MDP)，由五元组 $(S, A, P, R, \gamma)$ 描述：
-
-\begin{itemize}
-  \item $S$：状态空间，描述环境所有可能的状态；
-  \item $A$：动作空间，描述智能体在每个状态下可采取的所有动作；
-  \item $P(s'|s,a)$：状态转移概率，描述在状态$s$执行动作$a$后转移到状态$s'$的概率；
-  \item $R(s,a)$：奖励函数，描述在状态$s$执行动作$a$后获得的即时奖励；
-  \item $\gamma \in [0,1]$：折扣因子，控制对未来奖励的衰减权重。
-\end{itemize}
-
-上述五元组构成了强化学习算法的核心环境模型，也是本文系统设计的理论基础。
-
-\subsection{时序差分学习}
-
-时序差分(Temporal Difference, TD)方法是一类无模型(Model-Free)的在线学习算法，无需知道环境的状态转移概率（即没有上帝视角），只能走一步看一步，边走边学习。代表性算法包括：
-
-\textbf{（1）Sarsa算法}：根据当前状态$s$、动作$a$、奖励$r$、下一状态$s'$和下一动作$a'$来更新状态-动作值函数：
+强化学习（Reinforcement Learning, RL）通过智能体与环境的持续交互学习决策策略，其核心目标是最大化长期累计回报。在本文场景中，前处理网络无法直接对硬件编码器内部过程求导，因此更适合采用“与编码环境交互—根据反馈更新策略”的强化学习范式。形式上，该问题可建模为马尔可夫决策过程 $(S,A,P,R,\gamma)$：状态 $s_t$ 描述当前可观测视频片段及上下文，动作 $a_t$ 对应前处理后的输出帧，奖励 $r_t$ 则反映该动作在码率与感知质量上的综合收益。长期优化目标通常写为
 \begin{equation}
-  Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma Q(s',a') - Q(s,a) \right]
+G_t = \sum_{k=0}^{T-t-1} \gamma^k r_{t+k+1},
+\label{eq:rl-return}
+\end{equation}
+其中 $\gamma\in[0,1]$ 表示折扣因子，用于平衡短期收益与长期收益。
+
+在学习机制上，经典时序差分方法通过“估计—自举”方式更新价值函数。Sarsa采用行为策略下的下一动作进行更新，其形式为
+\begin{equation}
+  Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma Q(s',a') - Q(s,a) \right],
   \label{eq:sarsa}
 \end{equation}
-
-\textbf{（2）Q-Learning算法}：与Sarsa不同，Q-Learning在更新时取下一状态的最大Q值，而非下一步实际执行的Q值：
+而Q-Learning采用下一状态的最大价值进行更新，形式为
 \begin{equation}
-  Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \right]
+  Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \right],
   \label{eq:qlearning}
 \end{equation}
+二者在低维离散控制问题中有效，但在视频前处理这类高维连续动作空间中，直接构建离散动作价值表会带来严重的维度与样本效率瓶颈。
 
-\subsection{策略梯度与REINFORCE算法}
-
-上述基于值函数的方法在高维连续动作空间（如像素级图像增强）中面临维度灾难\footnote{维度灾难(Curse of Dimensionality)：指随着状态或动作空间维度的增加，所需的样本数量和计算资源呈指数级增长，导致基于值函数的方法在高维空间中难以有效学习。}的问题。策略梯度(Policy Gradient)方法则直接参数化策略函数$\pi_\theta(a|s)$，并通过梯度上升(Gradient Ascent)优化策略参数$\theta$以最大化期望累积回报：
-
+为此，本文采用策略梯度与价值评估结合的Actor-Critic框架。策略目标可写为
 \begin{equation}
-  J(\theta) = \mathbb{E}_{s_0} \left[ V^{\pi_\theta}(s_0) \right]
+  J(\theta) = \mathbb{E}_{s_0}\left[V^{\pi_\theta}(s_0)\right],
   \label{eq:policy-objective}
 \end{equation}
-
-其中，$V^{\pi_\theta}(s_0)$是策略$\pi_\theta$下从初始状态$s_0$出发的期望累积回报。通过策略梯度定理(Policy Gradient Theorem)，目标函数的梯度可以写为：
-
+其梯度形式为
 \begin{equation}
-  \nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta} \left[ Q^{\pi_\theta}(s,a) \cdot \nabla_\theta \log \pi_\theta(a|s) \right]
+  \nabla_\theta J(\theta) = \mathbb{E}_{\pi_\theta}\left[Q^{\pi_\theta}(s,a)\cdot\nabla_\theta\log\pi_\theta(a|s)\right],
   \label{eq:policy-gradient}
 \end{equation}
-
-其直观含义为：$\nabla_\theta \log \pi_\theta(a|s)$指示了参数的调整方向（增加某动作概率）；$Q^{\pi_\theta}(s,a)$衡量该动作的好坏（得分高低）。好的动作会被增强概率，坏的动作会被降低概率。
-
-REINFORCE算法是最经典的策略梯度方法：通过蒙特卡洛采样完整的轨迹来估计$Q^{\pi_\theta}(s,a)$，并据此更新策略参数。然而，由于蒙特卡洛估计的高方差，纯REINFORCE在实际中收敛较慢。
-
-\subsection{Actor-Critic架构}
-
-Actor-Critic是一种结合了策略梯度方法(Actor)和价值估计方法(Critic)的混合架构\cite{ref26-liu2021elegantrl}，旨在解决纯策略梯度方法方差过大的问题：
-
-\begin{itemize}
-  \item \textbf{Actor}（策略网络）：参数化策略$\pi_\theta(a|s)$，负责根据当前状态选择动作；
-  \item \textbf{Critic}（价值网络）：学习状态-动作值函数$Q_\phi(s,a)$，评估当前动作的好坏，用于替代REINFORCE中的蒙特卡洛估计。
-\end{itemize}
-
-Actor和Critic在训练过程中相互协作：Critic通过最小化TD误差$\mathcal{L}_{\text{Critic}} = \text{MSE}(Q_\phi(s,a), r + \gamma Q_\phi(s',a'))$更新参数$\phi$；Actor则沿Critic给出的$Q$值梯度方向更新参数$\theta$，使策略朝着获得更高$Q$值的方向进化：
-
+对应到确定性策略实现，可用
 \begin{equation}
-  \nabla_\theta J \approx \nabla_\theta Q_\phi(s, \pi_\theta(s))
+  \nabla_\theta J \approx \nabla_\theta Q_\phi\big(s,\pi_\theta(s)\big)
   \label{eq:actor-update}
 \end{equation}
-
-Actor-Critic架构的优势在于：（1）通过Critic的价值估计大幅降低了策略梯度的方差；（2）Actor可以输出连续动作，天然适用于图像增强等高维连续空间任务。
-
-在视频编码领域，文献\cite{ref3-chen2018rl}已证明强化学习能有效应用于HEVC帧级码率分配；AVS M9322提案\cite{ref27-zhao2025rapnet}进一步将其扩展到基于RAPNet的前处理滤波工具中，说明其在提升编码器率失真性能方面具有进一步研究价值。
+近似Actor更新方向；Critic则通过最小化
+\begin{equation}
+  \mathcal{L}_{\text{Critic}} = \mathrm{MSE}\left(Q_\phi(s,a),\,r\right)
+  \label{eq:critic-loss-rl2}
+\end{equation}
+学习价值评估。在视频编码领域，文献\cite{ref3-chen2018rl}已证明强化学习能有效应用于HEVC帧级码率分配；AVS M9322提案\cite{ref27-zhao2025rapnet}进一步将其扩展到基于RAPNet的前处理滤波工具中，说明其在提升编码器率失真性能方面具有进一步研究价值。
 
 \section{本章小结}
 

@@ -1,0 +1,39 @@
+\begin{tikzpicture}[
+  font=\small,
+  frame/.style={rectangle, rounded corners=3pt, draw=black, align=center, minimum height=1.15cm, minimum width=3.8cm, fill=white},
+  stage/.style={rectangle, rounded corners=5pt, draw=blue!60!black, align=center, minimum height=1.2cm, minimum width=4.0cm, fill=blue!10},
+  codec/.style={rectangle, rounded corners=6pt, draw=green!45!black, align=center, minimum height=1.35cm, minimum width=11.2cm, fill=green!14},
+  metric/.style={rectangle, rounded corners=3pt, draw=black, align=center, minimum height=1.05cm, minimum width=3.8cm, fill=gray!8},
+  compare/.style={rectangle, rounded corners=3pt, draw=black, align=center, minimum height=1.05cm, minimum width=7.2cm, fill=white},
+  note/.style={rectangle, dashed, draw=black, align=center, minimum height=1.0cm, minimum width=5.0cm, fill=white},
+  flow/.style={-{Latex[length=3.0mm,width=2.3mm]}, line width=0.8pt, line cap=round, line join=round}
+]
+
+\node[frame] (in) at (-4.6,4.4) {1080p原始YUV序列\\$x_t$};
+\node[stage] (rapnet) at (0,4.4) {强化学习前处理网络\\RAPNet};
+\node[frame] (pre) at (4.6,4.4) {前处理后YUV序列\\$\hat{x}_t$};
+
+\node[note] (cfg) at (0,2.6) {编码控制参数\\CQP模式，QP$\in\{37,40,42,45,47\}$};
+\node[codec] (codec) at (0,0.95) {Video Codec（硬件编码环境）\\NVENC编码（HEVC, CQP）$\rightarrow$硬件解码（NVDEC/FFmpeg）};
+
+\node[metric] (base) at (-3.2,-1.8) {Baseline分支输出\\Bitrate, VMAF/LPIPS};
+\node[metric] (ours) at (3.2,-1.8) {前处理分支输出\\Bitrate, VMAF/LPIPS};
+\node[compare] (cmp) at (0,-4.0) {率失真对比与增益分析\\$\Delta V,\Delta R$};
+
+\draw[flow] (in.east) -- (rapnet.west);
+\draw[flow] (rapnet.east) -- (pre.west);
+\draw[flow] (cfg.south) -- (codec.north);
+
+% Simple vertical feeds into codec
+\draw[flow] (in.south) -- ([xshift=-4.6cm]codec.north);
+\draw[flow] (pre.south) -- ([xshift=4.6cm]codec.north);
+
+% Vertical outputs from codec
+\draw[flow] ([xshift=-3.2cm]codec.south) -- (base.north);
+\draw[flow] ([xshift=3.2cm]codec.south) -- (ours.north);
+
+% Vertical aggregation into comparison block
+\draw[flow] (base.south) -- ([xshift=-3.2cm]cmp.north);
+\draw[flow] (ours.south) -- ([xshift=3.2cm]cmp.north);
+
+\end{tikzpicture}

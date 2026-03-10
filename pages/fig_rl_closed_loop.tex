@@ -1,0 +1,56 @@
+\begin{tikzpicture}[
+  font=\small,
+  blk/.style={rectangle, rounded corners=4pt, draw=black, align=center, minimum width=2.8cm, minimum height=1.1cm, fill=white},
+  net/.style={rectangle, rounded corners=6pt, draw=blue!60!black, align=center, minimum width=3.0cm, minimum height=1.15cm, fill=blue!10},
+  env/.style={rectangle, rounded corners=6pt, draw=green!40!black, align=center, minimum width=3.6cm, minimum height=1.25cm, fill=green!12},
+  loss/.style={rectangle, rounded corners=4pt, draw=black, align=center, minimum width=2.8cm, minimum height=1.1cm, fill=gray!8},
+  flow/.style={-{Latex[length=3.0mm,width=2.3mm]}, line width=0.8pt, line cap=round, line join=round},
+  upd/.style={-{Latex[length=2.8mm,width=2.1mm]}, line width=0.75pt, dashed, line cap=round}
+]
+
+\node[blk]  (state)   at (-1.9,  3.2) {State $s_t$\\Y/Cb/Cr片段};
+\node[net]  (actor)   at ( 1.7,  3.2) {Agent-Actor\\RAPNet};
+\node[loss] (lactor)  at ( 1.7,  6.0) {Hybrid Loss\\$\mathcal{L}_{actor}$};
+\node[blk]  (action)  at ( 5.3,  3.2) {Action $a_t$\\前处理后帧};
+\node[env]  (env)     at ( 9.2,  3.2) {Environment\\NVENC编码+解码\\质量评估};
+
+\node[net]  (critic)  at ( 1.7, -0.8) {Agent-Critic\\ValueNet};
+\node[loss] (lcritic) at ( 1.7, -3.6) {MSE Loss\\$\mathcal{L}_{critic}$};
+\node[blk]  (reward)  at ( 9.2, -0.8) {Reward $r_t$\\$\Delta V,\Delta R$聚合};
+
+% Background boxes
+\begin{scope}[on background layer]
+  \node[draw=blue!45!black, rounded corners=10pt, inner sep=0.42cm, fit=(lactor) (state) (actor) (critic) (lcritic)] (agentbox) {};
+  \node[draw=green!40!black, rounded corners=10pt, inner sep=0.34cm, fit=(env) (reward)] (envbox) {};
+\end{scope}
+
+\node[font=\bfseries, anchor=south west] at ([xshift=1.5cm,yshift=0.12cm]agentbox.north west) {Agent};
+\node[font=\bfseries, anchor=south] at ([yshift=0.16cm]envbox.north) {Environment};
+
+% Main inference / interaction path
+\draw[flow] (state.east) -- (actor.west);
+\draw[flow] (actor.east) -- (action.west);
+\draw[flow] (action.east) -- (envbox.west |- action.east);
+\draw[flow] (env.south) -- (reward.north);
+\draw[flow] (reward.west) -- node[above, fill=white, inner sep=1pt] {监督信号} (critic.east);
+
+% State to critic and losses
+\draw[flow] (state.south) -- node[below left] {$s_t$} (critic.north west);
+\draw[flow] (state.north) -- (lactor.west);
+
+% Value output and Loss connections (straight alignments)
+\draw[flow] ([xshift=-0.5cm]critic.south) -- node[left] {$Q_\phi(s_t,a_t)$} ([xshift=-0.5cm]lcritic.north);
+
+% Parameter / optimization updates
+\draw[upd] (critic.north) -- node[right] {价值引导} (actor.south);
+\draw[upd] (lactor.south) -- (actor.north);
+\draw[upd] ([xshift=0.5cm]lcritic.north) -- ([xshift=0.5cm]critic.south);
+
+% Next-state feedback loop
+\coordinate (topY) at ($(agentbox.north)+(0,0.8)$);
+\coordinate (loopA) at ($(envbox.east)+(0.6,0)$);
+\coordinate (loopB) at (loopA |- topY);
+\coordinate (loopC) at ([xshift=-0.8cm]state.north |- topY);
+\draw[flow] (envbox.east |- env.east) -- (loopA |- env.east) -- (loopB) -- node[above, fill=white, inner sep=1pt] {$s_{t+1}$} (loopC) -- ([xshift=-0.8cm]state.north);
+
+\end{tikzpicture}

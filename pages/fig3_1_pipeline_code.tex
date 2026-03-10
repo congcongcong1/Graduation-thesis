@@ -1,0 +1,47 @@
+﻿\begin{tikzpicture}[
+    node distance=0.45cm,
+    >=Latex,
+    font=\small,
+    flow/.style={rectangle, rounded corners=2pt, draw=black, align=center, minimum width=11.0cm, minimum height=0.95cm, fill=white},
+    side/.style={rectangle, rounded corners=2pt, draw=black, align=center, minimum width=4.8cm, minimum height=0.95cm, fill=white},
+    note/.style={font=\footnotesize, align=center}
+]
+
+\node[flow] (n0) {视频库输入（1080p YUV420）};
+\node[flow, below=of n0] (n1) {\texttt{env.reset()}：随机视频 + 随机起始帧，读取 $T=16$ 帧 Y/Cb/Cr};
+\node[flow, below=of n1] (n2) {Random Crop（$540\times960$）构建状态 $s_t=(y,cb,cr)$};
+\node[flow, below=of n2] (n3) {前处理网络（Actor: RAPNet）\,$\Rightarrow$\,动作 $a_t=(y',cb',cr')$};
+\node[flow, below=of n3] (n4) {写入临时预处理序列 \texttt{preproc.yuv}};
+
+\node[flow, below=of n4] (n5) {\texttt{FFmpeg + hevc\_nvenc constqp} 编码（逐个 QP）};
+\node[flow, below=of n5] (n6) {解码得到 \texttt{decoded\_qp.yuv}};
+\node[flow, below=of n6] (n7) {前处理评估：YUV$\rightarrow$BGR，计算 $V_{cur}$ 与 $R_{cur}$};
+\node[flow, below=of n7] (n8) {对比基线 RD：$\Delta V,\Delta R$，并计算 $reward_{qp}=200\Delta V+100\Delta R$};
+
+\node[flow, below=of n8] (n9) {跨 QP 聚合：$reward=\frac{1}{|\mathcal{Q}|}\sum\limits_{q\in\{37,40,42,45,47\}} reward_q$};
+\node[flow, below=of n9] (n10) {Actor-Critic 更新：Critic 拟合 $Q(s_t,a_t)\approx reward$；Actor 最大化 $Q$（含正则项）};
+
+\node[side, right=1.1cm of n8] (b0) {基线 RD 表\texttt{rd\_table}\vspace{1mm}\\$R_{ref},V_{ref}$};
+\node[note, right=1.1cm of n5] (q0) {QP 循环：\{$37,40,42,45,47$\}};
+
+\draw[->] (n0) -- (n1);
+\draw[->] (n1) -- (n2);
+\draw[->] (n2) -- (n3);
+\draw[->] (n3) -- (n4);
+\draw[->] (n4) -- (n5);
+\draw[->] (n5) -- (n6);
+\draw[->] (n6) -- (n7);
+\draw[->] (n7) -- (n8);
+\draw[->] (n8) -- (n9);
+\draw[->] (n9) -- (n10);
+\draw[->] (b0.west) -- (n8.east);
+
+\draw[->, dashed] (n10.west) .. controls +(-4.3,-0.2) and +(-4.3,0.2) .. (n1.west)
+node[midway, left, note] {下一迭代};
+
+\begin{scope}[on background layer]
+    \node[draw=black, dashed, rounded corners=3pt, inner sep=0.26cm,
+          fit=(n5) (n6) (n7) (n8) (q0)] (loopbox) {};
+\end{scope}
+
+\end{tikzpicture}
