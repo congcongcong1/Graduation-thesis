@@ -58,7 +58,56 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{前处理技术分析}
 
-视频前处理的目标是在编码前优化原始信号，使其更适合压缩\cite{ref17-ma2023rateperception}。理想的模型需在计算复杂度、时域一致性与显存开销之间取得平衡。在低码率场景下，有效的降噪几乎等同于压缩。
+视频前处理的目标是在编码前优化原始信号，使其更适合压缩\cite{ref17-ma2023rateperception}。理想的模型需在计算复杂度、时域一致性与显存开销之间取得平衡。在降低传输带宽和存储成本的需求下，预先滤除对主观画质影响极小但会消耗大量码率的冗余信息，已成为前处理的重要任务。
+
+近年来，学术界提出了大量针对视频或图像去噪（Denoising）的前处理与后处理模型（如表~\ref{tab:offline-denoise}所示，整理了部分主流高斯去噪方法评估结果）。这类模型大多数属于离线画质增强任务，其核心设计目标在于利用深层网络架构发掘图像的空间特征，从而在基准数据集上获取极致的客观跑分（如PSNR/SSIM）。尽管在画面修复上效果很好，但它们的典型应用场景往往不具备严格的实时与低延迟限制。很多架构的计算开销极大，处理视频时也完全脱离了视频编码的物理约束，更没有编码器感知（Encoder-aware）的概念。将这些侧重离线修复脱机算力的庞大模型直接前置到编码器之前，难以满足直播流媒体等在线业务对低延迟和高吞吐率的严苛物理约束。
+
+\begin{table}[htbp]
+  \centering
+  \caption{离线去噪大模型客观指标综合对比（PSNR，彩色高斯去噪 $\sigma=15$）}
+  \label{tab:offline-denoise}
+  \small
+  \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Method} & \textbf{CBSD68} & \textbf{Kodak24} & \textbf{McMaster} & \textbf{Urban100} \\
+    \midrule
+    IRCNN       & 33.86 & 34.69 & 34.58 & 33.78 \\
+    FFDNet      & 33.87 & 34.63 & 34.66 & 33.83 \\
+    DnCNN       & 33.90 & 34.60 & 33.45 & 32.98 \\
+    DRUNet      & 34.30 & 35.31 & 35.40 & 34.81 \\
+    SwinIR      & 34.42 & 35.34 & 35.61 & 35.13 \\
+    Restormer   & 34.40 & 35.35 & 35.61 & 35.13 \\
+    Xformer     & 34.43 & 35.39 & 35.68 & 35.29 \\
+    MambaIR     & 34.48 & 35.42 & 35.70 & 35.37 \\
+    MambaIRv2   & 34.48 & 35.43 & 35.73 & 35.42 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+为了克服传统画质修复模型计算开销大、与编码系统解耦的局限性，在此应用边界下，将前处理与后续视频编码管道深度绑定的编码器感知（Encoder-aware）\footnote{编码器感知（Encoder-aware）指前/后处理算法不再盲目优化均方误差等客观指标，而是通过代理网络、提取编码参数（如QP、运动向量）或与真实编码器交互的方式，主动适应后续视频编码引擎的压缩机制与实际码流分配策略，从而达到联合优化视觉质量和压缩效率的目的。}技术逐渐成为在线传输领域的研究热点。这类技术有别于盲目的通用图像复原模型，其核心在于前处理模块的设计或训练过程均围绕着后续编码引擎的特性展开。如表~\ref{tab:encoder-aware-preprocessing}所示，笔者总结了近期具有代表性的前处理编码协同优化方案。从早期基于图像缩放分发的 Down-sampling+SR 方案\cite{ref9-shen2011downsampling}，到结合深度学习构建联合复原重建网络框架的 RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn}；再到根据真实编码参数（如QP）自适应调整强度的传统时空滤波 EA-MCTF\cite{ref12-vanam2023dcc}，以及利用代理网络引导高频滤波去冗余的深度方案 RPP\cite{ref17-ma2023rateperception}，可以看出前处理正一步步朝着计算轻量、更贴紧实际编码特性的方向发展。
+
+
+本文所采用的RAPNet前处理框架及其衍生方案（即本文工作），则进一步将强化学习引入了编码器感知环节。通过令前处理模型与真实的硬件编码器（如NVENC/AVS）进行环境交互（Codec-in-the-loop），实现了对编码黑盒的直接感知与策略寻优，同时严格控制了参数量以满足流媒体极低延迟的实时性要求。
+
+\begin{table}[htbp]
+  \centering
+  \caption{编码器感知前处理方法对比表}
+  \label{tab:encoder-aware-preprocessing}
+  \resizebox{\textwidth}{!}{
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{方法} & \textbf{编码器感知} & \textbf{Codec-in-the-loop训练} & \textbf{面向编码器} & \textbf{核心目标} & \textbf{参数量/实时性} & \textbf{适用阶段} \\
+    \midrule
+    Down-sampling+SR\cite{ref9-shen2011downsampling} & 弱(间接约束码率)& 否 & 泛用 & 降采样节约带宽 & 需配套超分/较慢 & 编码前缩放+解码后超分 \\
+    RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} & 弱(联合优化误差) & 否(端到端重训练) & HEVC等 & 频域恢复与重建 & 多分支CNN/中等 & 编码前滤波+解码后重建 \\
+    EA-MCTF\cite{ref12-vanam2023dcc} & 是(提取QP等特征) & 否(传统自适应滤波) & HEVC & 联合时空特征降噪 & 无(分块算法)/快 & 编码前单独滤波 \\
+    RPP\cite{ref17-ma2023rateperception} & 是(利用替代Proxy) & 否(通过代理网络间接结合) &泛用(HEVC等) & 滤除高频/节约码率 & $\sim$百万级CNN/慢 & 编码前单独预处理 \\
+    RAPNet\cite{ref27-zhao2025rapnet} & 是(提取环境特征) & 是(与真实测试集交互评估) & AVS3/VVC等 & 动态策略增强画质 & $<$1M / 极快 & 编码前期实时干预 \\
+    \textbf{本文方案} & \textbf{是(NVENC真实反馈)} & \textbf{是(强化学习探索策略)} & \textbf{NVENC} & \textbf{算力自适应/低码率视觉提升} & \textbf{139K/$<$10ms} & \textbf{编码前端极低延迟旁路} \\
+    \bottomrule
+  \end{tabular}
+  }
+\end{table}
 
 \subsection{传统CNN架构}
 
