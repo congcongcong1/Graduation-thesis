@@ -2,7 +2,9 @@
 
 本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。在进入具体设计之前，有必要说明本方案的选型过程。在项目早期，笔者首先尝试了基于监督学习的率感知预处理方案RPP\cite{ref17-ma2023rateperception}。RPP通过自适应DCT损失函数智能去除高频冗余，在原生分辨率、软件编码器(x265)的测试中取得了显著的BD-Rate收益。然而，将其部署到NVENC硬件编码器的2$\times$下采样流水线中时，效果却不如纯硬件基线方案。经过深入的频谱分析和反复调试，笔者定位到两个根本性问题：其一，RPP的DCT优化策略是基于输入分辨率设计的，在4K尺度下被判定为可以牺牲的中频纹理，恰恰是下采样后1080p画面中仅存的清晰度来源，导致处理后画面严重发糊；其二，RPP输出的低方差平滑信号触发了NVENC码率控制算法的误判——硬件编码器将其识别为平坦区域并激进地提高QP，最终造成块效应和色带，画质严重过平滑并伴随明显块状伪影。这一失败经验说明，基于监督学习的前处理方案本质上无法感知编码器的行为，必须引入一种能够将编码器纳入优化回路的训练范式。因此本文最终选择强化学习框架：将不可导的NVENC视为黑盒环境，通过编码器感知的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
 
-\section{系统总体架构}
+为保持章节层次清晰，本章按照“系统架构与设计思路”“前处理优化的设计与训练算法”“模块实现与技术细节”三部分展开，依次说明整体框架、优化机制以及具体实现。
+
+\section{系统架构与设计思路}
 
 从物理处理链路看，系统以1080p原始YUV序列为输入，先由RAPNet执行编码前增强，再在固定QP控制下进入NVENC硬件编解码链路，最后以感知质量与码率指标对前处理收益进行对比评估。该过程如图~\ref{fig:macro-preprocess-flow}所示。图中同时给出了Baseline分支与前处理分支在同一编码环境下的输出结果，便于直接观察$\Delta V$与$\Delta R$的来源及其工程意义。
 
@@ -13,7 +15,11 @@
   \label{fig:macro-preprocess-flow}
 \end{figure}
 
-\section{Agent与Environment定义及强化学习反馈闭环}
+图~\ref{fig:macro-preprocess-flow}可从三个层面理解整个系统。首先，上层主链路描述了数据流向：1080p原始YUV序列进入RAPNet后生成前处理结果$\hat{x}_t$，该结果与原始输入共同送入后续编码环境。其次，中间部分给出了统一的控制条件，即系统在固定CQP模式和多QP配置下调用NVENC/NVDEC或FFmpeg解码链路，从而保证Baseline分支与前处理分支处于完全一致的编码约束下。最后，下层评价模块分别输出两条分支的Bitrate和VMAF/LPIPS，并通过$\Delta V$与$\Delta R$完成率失真增益分析。
+
+这种双分支并行设计的关键作用在于隔离变量，使前处理模块成为系统中唯一的主动干预因素。换言之，图中的$\Delta V$和$\Delta R$并不反映通用增强模型的离线复原能力，而是专门刻画RAPNet对NVENC编码行为的影响。当RAPNet抑制了编码器不敏感的高频冗余、或增强了更利于压缩保持的结构信息时，这些变化会进一步传导到块划分、量化和码率分配过程中，最终体现为感知质量与码率开销的联动变化。
+
+\subsection{Actor-Critic反馈闭环}
 
 在本文系统中，Agent由Actor与Critic共同构成，而非单一网络。Actor对应RAPNet，负责在状态$s_t$下生成前处理动作$a_t$；Critic对应ValueNet，负责评估状态—动作对的价值并提供策略优化方向。其基本决策关系可写为
 \begin{equation}
@@ -51,28 +57,23 @@ Environment由真实硬件编解码流程与质量评估模块共同定义，对
   \label{fig:rl-closed-loop}
 \end{figure}
 
-\section{状态空间与动作空间设计}
+图~\ref{fig:rl-closed-loop}进一步说明了Actor-Critic框架在本文任务中的具体分工。从整体上看，图中左侧的State、上方的Actor以及下方的Critic共同构成Agent，它们负责根据当前输入状态生成前处理策略并持续完成自我更新。具体而言，State模块对应当前输入的Y/Cb/Cr视频片段；Actor根据状态生成动作$a_t$，即前处理后的候选视频帧；Environment则负责执行真实的“编码—解码—质量评估”过程，并根据相对Baseline的质量变化和码率变化生成奖励。与传统监督学习直接最小化重建误差不同，这里的奖励来自真实硬件编码反馈，因此能够直接反映动作是否有利于低码率场景下的率失真优化。
 
-\subsection{状态空间构建}
+图中下方的Critic承担价值评估角色。它同时感知状态与动作，并根据Environment返回的奖励学习$Q_\phi(s_t,a_t)$，从而判断当前动作在长期收益意义下是否值得保留。Critic的输出通过价值引导作用于Actor，帮助Actor逐步学会在“增强结构信息”和“抑制冗余纹理”之间找到更合适的平衡点。上方的Hybrid Loss则进一步对Actor施加频域和空间平滑约束，使策略优化不至于走向过锐化或高频噪声堆积。整体而言，图~\ref{fig:rl-closed-loop}给出的不是简单的前向推理过程，而是一个围绕真实编码器反馈不断闭环修正的策略学习系统。
+
+\section{前处理优化的设计与训练算法}
+
+\subsection{状态、动作与训练样本构建}
 
 定义$t$时刻的状态空间$s_t$为待编码的原始视频帧序列。鉴于NVENC硬件编码器及主流视频标准广泛采用YCbCr 4:2:0格式，系统首先通过双线性插值(Bilinear Interpolation)将下采样的色度分量(Cb, Cr)上采样至与亮度分量(Y)相同的空间分辨率。最终构建的输入状态张量形状为$(B \times T, 3, H, W)$，其中$T$为时序长度，旨在利用视频帧间的时域相关性辅助决策。
 
-\subsection{动作空间定义}
-
 为了克服直接生成像素可能导致的训练震荡与收敛困难问题，系统采用\textbf{残差学习}(Residual Learning)策略。Agent的输出并非直接的像素值，而是针对原始帧的残差修正量。定义$t$时刻的状态为原始视频帧$s_t$，网络输出为残差图$f_{\text{Actor}}(s_t)$，则最终生成的动作$a_t$表示为：
-
-% ============================================================
-% 【示例：如何插入公式】
-% ============================================================
 \begin{equation}
   a_t = \text{clamp}(s_t + f_{\text{Actor}}(s_t), 0, 1)
   \label{eq:action}
 \end{equation}
 
 其中，$\text{clamp}(\cdot, 0, 1)$ 操作用于将叠加后的像素值强制约束在合法区间 $[0, 1]$ 内，确保输入硬件编码器的视频帧数据有效。
-
-
-\section{Random Crop训练策略}
 
 在早期的系统设计中，训练时采用2$\times$下采样将1080p视频缩小为540p进行编码。在该方案下，模型的PSNR指标有所提升，但主观观看时却发现画面边缘明显模糊、纹理细节丢失严重。对训练数据进行频谱分析表明问题主要来自：下采样操作直接截断了Nyquist频率以上的高频分量，导致模型从一开始就没有真实的高频纹理，自然也无法学会保护这些细节。这一失败经验促使笔者重新审视训练数据的构建方式。
 
@@ -103,8 +104,7 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 
 需要特别注意的是，YUV 4:2:0格式要求裁剪坐标必须是2的倍数，以保证亮度与色度通道的空间对齐。在环境的\texttt{reset()}方法中，每个episode都会随机选择新的裁剪位置，从而实现数据增强效果。
 
-
-\section{复合奖励函数设计}
+\subsection{奖励机制与损失函数}
 
 针对低码率场景下主观画质与传输带宽的博弈难题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
 
@@ -122,12 +122,7 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
   \label{eq:reward-avg}
 \end{equation}
 
-
-\section{网络损失函数建模}
-
 为了确保Actor-Critic架构的稳定收敛，针对Critic和Actor网络分别设计了差异化的优化目标。
-
-\subsection{Critic网络损失}
 
 Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标是最小化预测$Q$值与真实奖励$R_{total}$之间的均方误差(MSE)：
 
@@ -135,8 +130,6 @@ Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标�
   \mathcal{L}_{\text{Critic}} = \text{MSE}(V(s_t, a_t), R_{total})
   \label{eq:critic-loss}
 \end{equation}
-
-\subsection{Actor网络损失}
 
 Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成：
 
@@ -174,7 +167,9 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
 
 其中，$N = B \times C \times H \times W$ 为归一化因子，确保损失数值不随分辨率变化而波动；$\hat{x}$ 代表Actor输出的增强帧。训练中各损失权重设置为$w_{\text{mse}} = 5$、$w_{\text{hf}} = 10$、$w_{\text{TV}} = 0.1$。
 
-\section{RAPNet网络架构}
+\section{模块实现与技术细节}
+
+\subsection{Actor-Critic网络实现}
 
 RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量为139K。相较于计算开销较大的Transformer架构\cite{ref22-liang2022vrt}，本文采用具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。完整的网络架构如图~\ref{fig:actor-critic-system}所示。
 
@@ -185,9 +180,9 @@ RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用�
   \label{fig:actor-critic-system}
 \end{figure}
 
-\subsection{Actor网络(RAPNet)结构}
+图~\ref{fig:actor-critic-system}从网络实现层面给出了系统内部模块的组织方式。图中的Actor对应RAPNet，负责对输入帧进行轻量化残差增强；Critic对应ValueNet，用于评估当前前处理动作对率失真收益的贡献。两者并不是彼此独立的两个网络，而是围绕同一状态和动作协同工作：Actor负责“生成可执行方案”，Critic负责“判断方案优劣”，从而使强化学习框架真正落到具体的视频前处理模型上。
 
-RAPNet采用“PixelUnshuffle → 残差学习 → PixelShuffle”的编码-解码结构：
+\textbf{Actor网络（RAPNet）}采用“PixelUnshuffle → 残差学习 → PixelShuffle”的编码-解码结构：
 
 \begin{enumerate}
   \item \textbf{输入层}：PixelUnshuffle将$(1, H, W)$重排为$(4, H/2, W/2)$，随后通过$3 \times 3$卷积 + LeakyReLU提取浅层特征；
@@ -197,9 +192,7 @@ RAPNet采用“PixelUnshuffle → 残差学习 → PixelShuffle”的编码-解�
 
 对Y、Cb、Cr三个通道分别设置独立的处理支路，最终输出与输入相同尺寸的YUV420帧。该架构通过PixelShuffle/Unshuffle实现的轻量级上下采样，有效控制了参数量和计算开销。
 
-\subsection{Critic网络(ValueNet)结构}
-
-ValueNet采用双分支特征融合架构：
+\textbf{Critic网络（ValueNet）}采用双分支特征融合架构：
 
 \begin{enumerate}
   \item \textbf{输入分支}与\textbf{输出分支}分别通过Conv + LeakyReLU + Conv提取特征；
@@ -209,8 +202,7 @@ ValueNet采用双分支特征融合架构：
 
 该双分支架构使Critic能够同时感知原始输入和Actor输出的差异，从而更准确地评估动作价值。
 
-
-\section{编码环境搭建}
+\subsection{编码环境与训练流程}
 
 系统基于NVIDIA Video Codec SDK搭建真实编码环境，通过FFmpeg调用NVENC硬件编码器实现视频帧在训练循环中的实时编解码。编码$\to$解码$\to$质量评估的完整流程通过FFmpeg命令行调用实现，其核心代码如代码~\ref{lst:nvenc-encode}所示。
 
@@ -270,12 +262,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
   \end{tabular}
 \end{table}
 
-
-\section{训练算法}
-
-本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的关键设计包括：
-
-\subsection{代码训练流程总览}
+本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的完整执行链路如图~\ref{fig:code-training-overview}所示。
 
 在代码执行层面，训练Pipeline可归纳为“采样状态—生成动作—硬件评估—网络更新”的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。该执行链路如图~\ref{fig:code-training-overview}所示。
 
@@ -285,6 +272,10 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
   \caption{代码训练流程总览}
   \label{fig:code-training-overview}
 \end{figure}
+
+图~\ref{fig:code-training-overview}展示了训练过程在实现层面的逐步展开方式。首先，环境随机选择视频片段、起始帧并读取连续16帧YUV数据；随后执行Random Crop，构造满足当前编码分辨率约束的状态$s_t$。其次，Actor根据状态输出前处理动作$a_t$，并将结果写入临时YUV文件，供后续硬件编码环境调用。接着，系统针对多个QP点逐一执行FFmpeg与\texttt{hevc\_nvenc}编码和解码，得到重建序列后计算当前分支的质量指标与实际码率。然后，系统查询Baseline RD表，计算每个QP下的$\Delta V$和$\Delta R$并形成单QP奖励，最后再对所有QP点聚合得到平均奖励。
+
+在参数更新阶段，Critic首先根据平均奖励拟合当前状态—动作对的价值，随后Actor在Critic价值引导和复合正则损失约束下更新参数。图中的虚线回边表示一次迭代完成后，系统重新采样下一段视频并进入新的训练轮次。该流程强调的不是单纯的网络前向，而是“真实编码反馈参与更新”的训练闭环，这也是本文区别于传统离线画质增强方法的关键所在。
 
 \begin{itemize}
   \item \textbf{多GPU协同}：Actor和Critic分别部署在不同GPU上，Critic更新完毕后将参数同步到GPU 0上的副本$Q_{\phi'}$（仅用于前向推理，不参与反向传播），避免跨GPU的自动求导断链问题；
@@ -327,4 +318,4 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 
 \section{本章小结}
 
-本章详细阐述了基于Actor-Critic架构的视频前处理优化系统的设计与实现。首先介绍了系统的总体架构和状态-动作空间设计，提出了基于Random Crop的高频保持训练策略。随后设计了基于相对率失真增益的多QP复合奖励函数，以及包含非边缘高频抑制的频域感知损失函数。在网络架构方面，详述了RAPNet(Actor)和ValueNet(Critic)的结构设计。最后给出了基于FFmpeg的NVENC编码环境搭建方案以及完整的多GPU训练算法。
+本章按照“系统架构与设计思路—前处理优化的设计与训练算法—模块实现与技术细节”的逻辑，系统阐述了基于Actor-Critic架构的视频前处理优化方案。首先，通过总体前处理流程图和强化学习闭环图说明了RAPNet、NVENC编码环境以及奖励反馈之间的协同关系。随后，围绕前处理优化任务给出了状态与动作建模、Random Crop训练样本构建、复合奖励函数及频域感知损失设计。最后，从网络实现和工程实现两个层面介绍了RAPNet/ValueNet结构、FFmpeg+NVENC编码环境以及完整的多GPU训练流程，为第四章实验验证提供了实现基础。
