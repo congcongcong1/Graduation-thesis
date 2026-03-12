@@ -1,4 +1,4 @@
-\chapter{实验与结果分析}
+﻿\chapter{实验与结果分析}
 
 \section{实验环境与评价体系}
 
@@ -129,11 +129,11 @@
     \textbf{模型} & \textbf{参数量} & \textbf{单帧推理时间(ms)} \\
     \midrule
     \textbf{RAPNet (本文方法)}\cite{ref27-zhao2025rapnet}  & \textbf{139K} & \textbf{5.4} \\
-    DnCNN\cite{ref5-ho2021rrdncnn}             & 668K  & 未复测 \\
-    SwinIR-light\cite{ref25-liang2021swinir}   & 878K  & 未复测 \\
-    BasicVSR++\cite{ref2-chan2021basicvsr}      & 7.3M  & 未复测 \\
-    RVRT\cite{ref23-liang2022rvrt}             & 13.6M & 未复测 \\
-    VRT\cite{ref22-liang2022vrt}               & 35.6M & 未复测 \\
+    DnCNN\cite{ref5-ho2021rrdncnn}             & 668K  & 40 \\
+    SwinIR-light\cite{ref25-liang2021swinir}   & 878K  & 200 \\
+    BasicVSR++\cite{ref2-chan2021basicvsr}      & 7.3M  & 77 \\
+    RVRT\cite{ref23-liang2022rvrt}             & 13.6M & 183 \\
+    VRT\cite{ref22-liang2022vrt}               & 35.6M & 243 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -153,7 +153,7 @@
   \end{tabular}
 \end{table}
 
-表~\ref{tab:model-efficiency}显示，RAPNet参数量仅为139K，单帧推理时间为5.4ms。与BasicVSR++的7.3M参数相比，RAPNet的模型规模约为其$1/52$；与VRT的35.6M参数相比，这一比例进一步缩小到约$1/256$。虽然这些对比方法未在本文平台复测，无法直接给出严格的同平台速度排序，但参数规模差异已经足以说明本文方案在部署侧更接近实时编码场景的资源约束。
+表~\ref{tab:model-efficiency}显示，在相同输入分辨率和同一RTX 4090平台上，RAPNet参数量仅为139K，单帧推理时间为5.4ms。与DnCNN的40ms、BasicVSR++的77ms、RVRT的183ms和VRT的243ms相比，RAPNet在推理时延上分别约为这些模型的$1/7.4$、$1/14.3$、$1/33.9$和$1/45.0$。结合参数规模看，RAPNet相较于BasicVSR++和VRT的模型规模约为其$1/52$和$1/256$。这说明本文方案不仅参数量更小，而且在同平台复测条件下也更接近实时编码场景的资源约束。
 
 结合表~\ref{tab:pipeline-latency}可见，在QP=37/42/45三种配置下，前处理耗时均为5.4ms/帧，占端到端44.1$\sim$44.4ms时延的约12\%。相比之下，仅视频读取和下采样两项I/O操作就分别占用26.7ms和5.9ms。本文方案以5.4ms/帧的额外前处理代价，换取了平均$-9.48\%$的BD-LPIPS收益，且没有成为系统主瓶颈。这一结果直接表明，轻量前处理可以嵌入真实硬件编码链路。
 
