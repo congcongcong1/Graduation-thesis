@@ -2,7 +2,7 @@
 
 \section{视频编码标准演进}
 
-视频编码标准的发展经历了多个重要里程碑。从早期的H.261到如今的H.266/VVC，每一代标准都在压缩效率上取得了显著提升\cite{ref19-badawy2025evolution}。本节简要回顾视频编码标准的发展脉络及其核心技术特点。
+视频编码标准的发展经历了多个重要里程碑。从早期的H.261到如今的H.266/VVC，每一代标准都在压缩效率上取得了显著提升\cite{ref19-badawy2025evolution}。本节简要回顾视频编码标准的发展脉络及其核心技术特点，并从后续实验所需的角度，对视频编码的基本组织方式作简要说明，为后文硬件编码器配置与实验设置提供背景。
 
 \subsection{H.265/HEVC标准}
 
@@ -12,21 +12,12 @@ H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开�
 
 H.266/VVC (Versatile Video Coding)于2020年发布，在HEVC的基础上进一步提升了约30\%--50\%的压缩效率\cite{ref1-bross2021vvc}。然而，其编码计算复杂度的激增使其在实时应用中面临巨大挑战。
 
-\subsection{硬件编码器NVENC}
+\subsection{硬件编码器NVENC与基本编码框架}
 
 NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引擎。与软件编码器(如x265)相比，NVENC具有极低的编码延迟，可支持实时1080p/4K编码，且功耗极低，不占用CPU/GPU通用计算资源。然而，由于硬件编码器的算法复杂度受芯片面积约束，其率失真性能可能不及软件编码器的最高质量模式。这一局限性正是本文研究的优化空间——通过AI前处理补偿硬件编码器在低码率下的质量损失。
 
-\subsection{视频编码帧类型与GOP结构}
 
-在H.264/H.265等视频编码标准中，编码帧主要分为三种类型：
-
-\begin{itemize}
-  \item \textbf{I帧（Intra-coded Frame）}：帧内编码帧，不参考其他帧，独立解码。I帧的码率最高，但解码不依赖其他帧，是随机访问的入口点；
-  \item \textbf{P帧（Predicted Frame）}：前向预测帧，参考前面的I帧或P帧进行运动补偿编码。相同画质下，P帧的码率通常为I帧的$1/3 \sim 1/2$；
-  \item \textbf{B帧（Bi-directional Predicted Frame）}：双向预测帧，同时参考前后帧进行编码，压缩率最高，但增加了编码延迟和复杂度。
-\end{itemize}
-
-如图~\ref{fig:ipb-gop}所示，上述三种帧类型通过特定的排列方式组成GOP结构。\textbf{GOP (Group of Pictures)}定义了I帧的间隔，即两个I帧之间包含的帧数。例如，GOP=32表示每32帧插入一个I帧。GOP越大，I帧的巨大比特开销被平摊到更多帧上，平均码率越低；但GOP过大会降低容错能力和随机访问效率。在实际应用中，GOP的选择需要在压缩效率与应用需求之间取得平衡。
+在H.264/H.265等标准中，视频序列通常以I帧、P帧和B帧组织：I帧独立编码，P帧以前向参考进行预测，B帧则利用双向参考以提升压缩效率。上述帧类型按照特定顺序组成GOP（Group of Pictures）结构，如图~\ref{fig:ipb-gop}所示。GOP长度决定了关键帧插入间隔，并直接影响压缩效率、随机访问能力与编码时延。由于本文后续实验涉及GOP参数对编码结果的影响，此处仅保留这一简要说明，作为实验配置分析的基础。
 
 \begin{figure}[htbp]
   \centering
@@ -34,8 +25,6 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \caption{I/P/B帧类型与GOP结构示意图}
   \label{fig:ipb-gop}
 \end{figure}
-
-\subsection{基于FFmpeg的硬件编解码}
 
 在工程实践中，FFmpeg是最通用的音视频处理工具，它通过集成NVIDIA的硬件加速组件来调用GPU编解码能力。表~\ref{tab:ffmpeg-components}汇总了本文涉及的核心组件及其功能。
 
@@ -58,9 +47,11 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{前处理技术分析}
 
-视频前处理的目标是在编码前优化原始信号，使其更适合压缩\cite{ref17-ma2023rateperception}。理想的模型需在计算复杂度、时域一致性与显存开销之间取得平衡。在降低传输带宽和存储成本的需求下，预先滤除对主观画质影响极小但会消耗大量码率的冗余信息，已成为前处理的重要任务。
+视频前处理的目标是在编码前优化原始信号，使其更适合压缩\cite{ref17-ma2023rateperception}。对于实时视频编码系统而言，前处理不仅需要改善主观视觉质量，还必须兼顾计算复杂度、时域一致性、显存开销与部署延迟。在带宽和存储资源受限的场景中，如何在编码前抑制对主观感受影响较小、却显著消耗码率的冗余信息，已成为前处理研究的核心问题。
 
-近年来，学术界提出了大量针对视频或图像去噪（Denoising）的前处理与后处理模型（如表~\ref{tab:offline-denoise}所示，整理了部分主流高斯去噪方法评估结果）。这类模型大多数属于离线画质增强任务，其核心设计目标在于利用深层网络架构发掘图像的空间特征，从而在基准数据集上获取极致的客观跑分（如PSNR/SSIM）。尽管在画面修复上效果很好，但它们的典型应用场景往往不具备严格的实时与低延迟限制。很多架构的计算开销极大，处理视频时也完全脱离了视频编码的物理约束，更没有编码器感知（Encoder-aware）的概念。将这些侧重离线修复脱机算力的庞大模型直接前置到编码器之前，难以满足直播流媒体等在线业务对低延迟和高吞吐率的严苛物理约束。
+\subsection{编码器感知前处理的发展脉络}
+
+从研究脉络看，早期相关工作多源自通用图像复原与去噪任务。近年来，学术界提出了大量针对视频或图像去噪（Denoising）的前处理与后处理模型，如表~\ref{tab:offline-denoise}所示。这类模型大多服务于离线画质增强，其设计目标主要是在公开数据集上获得更高的PSNR/SSIM等客观指标。尽管这类方法在画面修复上效果显著，但其典型应用场景通常不具备严格的实时和低延迟约束，且缺乏对视频编码链路的直接建模。若将此类脱离编码器约束的大模型直接前置到编码器之前，往往难以满足直播、会议和边缘编码等在线业务对吞吐率与时延的要求。
 
 \begin{table}[htbp]
   \centering
@@ -84,10 +75,10 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-为了克服传统画质修复模型计算开销大、与编码系统解耦的局限性，在此应用边界下，将前处理与后续视频编码管道深度绑定的编码器感知（Encoder-aware）\footnote{编码器感知（Encoder-aware）指前/后处理算法不再盲目优化均方误差等客观指标，而是通过代理网络、提取编码参数（如QP、运动向量）或与真实编码器交互的方式，主动适应后续视频编码引擎的压缩机制与实际码流分配策略，从而达到联合优化视觉质量和压缩效率的目的。}技术逐渐成为在线传输领域的研究热点。这类技术有别于盲目的通用图像复原模型，其核心在于前处理模块的设计或训练过程均围绕着后续编码引擎的特性展开。如表~\ref{tab:encoder-aware-preprocessing}所示，笔者总结了近期具有代表性的前处理编码协同优化方案。从早期基于图像缩放分发的 Down-sampling+SR 方案\cite{ref9-shen2011downsampling}，到结合深度学习构建联合复原重建网络框架的 RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn}；再到根据真实编码参数（如QP）自适应调整强度的传统时空滤波 EA-MCTF\cite{ref12-vanam2023dcc}，以及利用代理网络引导高频滤波去冗余的深度方案 RPP\cite{ref17-ma2023rateperception}，可以看出前处理正一步步朝着计算轻量、更贴紧实际编码特性的方向发展。
+为了克服传统画质修复模型计算开销大、与编码系统解耦的局限性，编码器感知（Encoder-aware）\footnote{编码器感知（Encoder-aware）指前/后处理算法不再盲目优化均方误差等客观指标，而是通过代理网络、提取编码参数（如QP、运动向量）或与真实编码器交互的方式，主动适应后续视频编码引擎的压缩机制与实际码流分配策略，从而达到联合优化视觉质量和压缩效率的目的。}前处理逐渐成为在线传输领域的研究热点。这类方法的核心不再是孤立地提升复原指标，而是在模型设计和训练过程中显式考虑后续编码器的压缩特性。如表~\ref{tab:encoder-aware-preprocessing}所示，相关方法经历了从 Down-sampling+SR\cite{ref9-shen2011downsampling} 这类间接码率约束方案，到 RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} 的联合恢复框架，再到可利用QP等编码参数的 EA-MCTF\cite{ref12-vanam2023dcc} 以及引入代理网络的 RPP\cite{ref17-ma2023rateperception} 的演进过程，体现出前处理技术正不断向“编码器耦合更紧、复杂度更低、部署性更强”的方向发展。
 
 
-本文所采用的RAPNet前处理框架及其衍生方案（即本文工作），则进一步将强化学习引入了编码器感知环节。通过令前处理模型与真实的硬件编码器（如NVENC/AVS）进行环境交互（Codec-in-the-loop），实现了对编码黑盒的直接感知与策略寻优，同时严格控制了参数量以满足流媒体极低延迟的实时性要求。
+本文所采用的RAPNet前处理框架及其衍生方案，则进一步将强化学习引入编码器感知环节。通过令前处理模型与真实的硬件编码器（如NVENC/AVS）进行环境交互（Codec-in-the-loop），该类方法能够直接利用编码反馈进行策略寻优，同时严格控制参数量与推理开销，以满足流媒体场景对极低延迟的要求。
 
 \begin{table}[htbp]
   \centering
@@ -109,15 +100,11 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   }
 \end{table}
 
-\subsection{传统CNN架构}
+\subsection{面向实时编码的模型选型}
 
-以DnCNN\cite{ref5-ho2021rrdncnn}为代表的早期图像复原模型，结构简单但感受野有限，难以捕捉长距离依赖，容易导致过度平滑，丢失纹理细节。
+从模型架构演进看，前处理骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{ref5-ho2021rrdncnn}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则通过自注意力增强了全局建模能力，在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
 
-\subsection{Transformer架构}
-
-以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer架构通过引入自注意力机制，能够有效建模全局依赖关系，在图像复原任务上取得了优异性能。然而，其计算复杂度随图像分辨率呈二次方增长，对于1080p及以上的高清视频处理，计算与显存开销巨大。值得注意的是，如VRT\cite{ref22-liang2022vrt}这类模型的惊人资源消耗是在仅为$320 \times 180$的低分辨率下测得的，若将其外推至1080p视频，其注意力机制的二次方复杂度将使其在任何实时应用中都变得完全不切实际。
-
-虽然Transformer架构在图像复原任务上取得了优异性能，但在处理视频任务时各有优劣。如表~\ref{tab:vsr-compare}所示，通过对比各主流算法在REDS4和Vimeo-90K等数据集上的性能指标（PSNR/SSIM）可以发现，BasicVSR++和RVRT等方法虽然性能卓越，但往往伴随着较高的计算代价。
+在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
 
 \begin{table}[htbp]
   \centering
@@ -142,7 +129,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-为了验证不同模型在实际部署中的可行性，表~\ref{tab:model-param-compare}详细对比了主流模型在$320 \times 180$输入尺寸下的参数量与推理耗时。数据显示，VRT的显存占用高达2149M，而BasicVSR++架构在保持较高PSNR (32.39dB)的同时，显存仅占用223M，推理速度快约3倍。
+为了验证不同模型在实际部署中的可行性，表~\ref{tab:model-param-compare}详细对比了主流模型在$320 \times 180$输入尺寸下的参数量与推理耗时。数据显示，VRT的显存占用高达2149M，而BasicVSR++在保持较高PSNR (32.39dB)的同时，显存仍需223M、推理时延仍为77ms，说明即便是相对高效的视频复原模型，也与实时前处理的部署约束存在明显差距。
 
 \begin{table}[htbp]
   \centering
@@ -162,13 +149,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-\subsection{状态空间模型架构}
-
-以MambaIR\cite{ref21-guo2024mambaIRv2}为代表的新兴架构将计算复杂度降低至线性级别，同时保留了强大的长距离依赖建模能力。调研数据显示，MambaIR在去除噪声的同时，能比其他模型更好地保留边缘和纹理细节，有效避免了画面的过度磨皮效应，使其成为轻量级、高效视频前处理的理想选择。
-
-\section{后处理技术分析}
-
-后处理通常在解码后进行，旨在修复压缩过程中产生的失真（如块效应、振铃效应）并提升分辨率\cite{ref2-chan2021basicvsr}。当前主要的代表性方法包括VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}。其中，VRT作为视频复原领域的性能标杆，全局注意力效果出众但推理极慢、显存占用极高；RVRT作为VRT的循环变体，显存占用约为VRT的一半，推理速度更快，是更具实用性的后处理方案；BasicVSR++作为经典循环网络模型，以极低参数量和极快推理速度成为视频增强领域的高效基准。上述三种方法在性能与效率之间的差异显著，为不同场景下的技术选型提供了参考。为了验证轻量化模型的优势，表~\ref{tab:lightweight-compare}汇总了各轻量级模型在2倍、3倍及4倍超分辨率任务下的性能与计算复杂度(MACs)。从已有测试数据看，MambaIR系列模型在同等参数量级下，能够取得优于SwinIR-light的重建质量，且计算复杂度呈线性增长，这构成了本项目算法选型的主要依据。
+进一步看轻量化方向，以MambaIR\cite{ref21-guo2024mambaIRv2}为代表的状态空间模型将计算复杂度降低至线性级别，同时保留了较强的长距离依赖建模能力。表~\ref{tab:lightweight-compare}给出了若干轻量级模型在超分任务上的对比结果，可以看到MambaIR系列在相近参数规模下具有较好的重建性能与复杂度平衡。虽然这些结果来自复原任务，但其“轻量化、强表征、低时延”的特征，与实时编码前处理的需求更为一致。
 
 \begin{table}[htbp]
   \centering
@@ -212,10 +193,16 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     BasicVSR++ & 前处理推荐      & $\sim$7.3M   & 77ms     & 223M  & 优秀     & 性价比之王 \\
     MambaIR    & 前处理推荐      & $<$1M        & 极低     & 低    & 优于CNN  & 线性复杂度 \\
     \bottomrule
-  \end{tabular}
+ \end{tabular}
 \end{table}
 
-通过对国内外研究现状的梳理，可以清晰地看到，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标的提升，转向与硬件编码器紧密结合、实现端到端性能与效率协同优化的方向\cite{ref16-ding2021advances}。然而，从表~\ref{tab:complexity-performance}的对比中也不难发现，当前主流的深度学习增强模型在实时性方面存在难以逾越的瓶颈：VRT虽然性能SOTA，但单帧推理超过200ms、显存占用超过2GB，完全无法嵌入NVENC硬件编码流水线中作为实时前处理模块；即便是效率优化后的BasicVSR++，其77ms/帧的推理时延与7.3M参数量也给端侧部署带来了巨大压力。在NVENC编码仅需3$\sim$4ms/帧的背景下，一个合格的前处理模块的推理时延必须控制在相同量级，否则将成为整个流水线的性能瓶颈。这一约束说明在本文所关注的实时需求下，超轻量级架构更具可行性，因此本文优先考虑参数量低于1M、推理时延低于10ms的轻量化路线。这也是本文技术选型的重要依据。
+综合上述分析可以看出，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标，转向与硬件编码器紧密结合、兼顾性能与效率协同优化的方向\cite{ref16-ding2021advances}。从表~\ref{tab:complexity-performance}不难发现，VRT、RVRT和BasicVSR++等模型虽然在复原任务中具有代表性，但其实时性仍不足以支撑NVENC流水线中的在线前处理。相比之下，参数规模更小、复杂度更低的轻量化模型更符合本文场景需求。因此，本文优先考虑参数量低于1M、推理时延低于10ms的前处理路线，并以此作为后续RAPNet方案设计与优化的选型依据。
+
+\section{后处理技术分析}
+
+后处理通常在解码后进行，主要用于修复压缩失真、抑制块效应与振铃效应，或进一步执行超分辨率重建\cite{ref2-chan2021basicvsr}。VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}是该方向具有代表性的工作。本文保留这些模型的引用与复杂度对比，主要是将其作为性能参照和技术背景说明，用以反衬实时场景下轻量化前处理方案的必要性。
+
+尽管后处理技术在低码率场景下能够改善解码后视觉效果，但它通常发生在编码完成之后，难以直接降低编码阶段的码率开销，也会进一步增加端到端链路时延。因此，相较于后处理，本文更关注能够在编码前直接影响码率分配与压缩行为的前处理技术，并将其作为后续研究的核心对象。
 
 \section{强化学习基础}
 
@@ -262,4 +249,6 @@ G_t = \sum_{k=0}^{T-t-1} \gamma^k r_{t+k+1},
 
 \section{本章小结}
 
-本章首先回顾了视频编码标准的演进历程，重点分析了H.265/HEVC标准\cite{ref10-sullivan2012hevc}及NVENC硬件编码器的特点，并介绍了基于FFmpeg的硬件编解码工具链。随后对主流的前处理与后处理技术进行了分类分析，涵盖了CNN\cite{ref5-ho2021rrdncnn}、Transformer\cite{ref25-liang2021swinir,ref22-liang2022vrt}和状态空间模型\cite{ref21-guo2024mambaIRv2}三类架构的优缺点。最后系统介绍了强化学习的基础理论，从时序差分学习、策略梯度到Actor-Critic架构，为后续章节的系统设计奠定了理论基础。
+本章首先回顾了视频编码标准的演进历程，重点分析了H.265/HEVC标准\cite{ref10-sullivan2012hevc}、NVENC硬件编码器及与后续实验相关的基本编码框架，并介绍了基于FFmpeg的硬件编解码工具链。随后重点梳理了前处理技术从通用图像复原到编码器感知协同优化的发展脉络，并结合CNN\cite{ref5-ho2021rrdncnn}、Transformer\cite{ref25-liang2021swinir,ref22-liang2022vrt}和状态空间模型\cite{ref21-guo2024mambaIRv2}等不同架构的复杂度与性能特征，明确了面向实时编码场景的轻量化选型依据。最后系统介绍了强化学习的基础理论，为后续章节的系统设计奠定了理论基础。
+
+尽管后处理技术在低码率场景下能够提升视觉质量，但本研究的主要目标是前处理技术的优化，尤其是在实时编码环境下，如何通过前处理提高编码质量并有效降低码率开销。前处理技术在视频编码中的作用至关重要，本文将在后续章节中详细探讨前处理模型的选择与优化方案。
