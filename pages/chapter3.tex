@@ -118,7 +118,7 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 为了实现跨码率点的泛化能力，系统在每个训练step中对同一段视频分别在QP $\in \{37, 40, 42, 45, 47\}$ 五个量化参数下进行编码，取所有QP点的平均奖励作为最终奖励信号：
 
 \begin{equation}
-  R_{avg} = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}} R_{total}(q)
+  \bar{r}_t = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}} R_{total}(q)
   \label{eq:reward-avg}
 \end{equation}
 
@@ -304,9 +304,9 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
     解码重建帧，计算 $V_{cur}(q)$ (LPIPS) 和 $R_{cur}(q)$ (码率)\;
     $r(q) \leftarrow \alpha \cdot \Delta V(q) + \beta \cdot \Delta R(q)$\;
   }
-  计算平均奖励: $R_{avg} \leftarrow \text{mean}(\{r(q)\}_{q \in \mathcal{Q}})$\;
+  计算平均奖励: $\bar{r}_t \leftarrow \text{mean}(\{r(q)\}_{q \in \mathcal{Q}})$\;
   \tcc{Critic更新 (在GPU 1上)}
-  $\mathcal{L}_{Critic} \leftarrow \text{MSE}(Q_\phi(s, a), R_{avg})$\;
+  $\mathcal{L}_{Critic} \leftarrow \text{MSE}(Q_\phi(s, a), \bar{r}_t)$\;
   反向传播更新 $\phi$，同步参数到 $Q_{\phi'}$\;
   \tcc{Actor更新 (在GPU 0上)}
   $\mathcal{L}_{Actor} \leftarrow -Q_{\phi'}(s, \pi_\theta(s)) + w_{mse} \cdot \mathcal{L}_{mse} + w_{hf} \cdot \mathcal{L}_{hf}$\;

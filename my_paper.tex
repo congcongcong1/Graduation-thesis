@@ -79,26 +79,31 @@
 
 % ---- 符号表 ----
 \begin{notation}
-  $s_t$        & $t$ 时刻的状态（原始视频帧）\\
-  $a_t$        & $t$ 时刻的动作（增强后的视频帧）\\
-  $R_{total}$  & 复合奖励函数值 \\
+  $s_t$        & $t$ 时刻的状态，表示当前输入视频片段 \\
+  $a_t$        & $t$ 时刻的动作，表示前处理后的输出帧 \\
+  $r_t^{(q)}$  & 在量化参数 $q$ 下的单QP奖励 \\
+  $\bar{r}_t$  & 跨QP点平均奖励 \\
   $V_{cur}$    & 当前动作经编码后的感知质量分数 \\
   $R_{cur}$    & 当前动作经编码后的实际码率 \\
   $V_{ref}$    & 基准编码器的参考感知质量分数 \\
   $R_{ref}$    & 基准编码器的参考码率值 \\
+  $\Delta V_t^{(q)}$ & 在量化参数 $q$ 下的感知质量增益 \\
+  $\Delta R_t^{(q)}$ & 在量化参数 $q$ 下的相对码率变化 \\
+  $\pi_{\theta}$ & Actor策略函数 \\
+  $Q_{\phi}$   & Critic价值函数 \\
   $\alpha$     & 感知质量增益权重系数 \\
-  $\beta$      & 码率惩罚权重系数 \\
+  $\beta$      & 码率节省权重系数 \\
+  $\gamma$     & 折扣因子 \\
+  $\mathcal{Q}$ & 训练与测试使用的QP集合 \\
   $w_{\text{mse}}$  & 加权MSE损失权重 \\
   $w_{\text{hf}}$   & 非边缘高频抑制损失权重 \\
   $w_{\text{TV}}$   & 全变分平滑损失权重 \\
-  LPIPS        & 学习感知图像块相似度 \\
+  LPIPS        & 学习感知图像块相似度指标 \\
+  BD-LPIPS     & 基于LPIPS的Bjontegaard Delta指标 \\
   SSIM         & 结构相似性指标 \\
   PSNR         & 峰值信噪比 \\
-  BD-Rate      & Bjøntegaard Delta Rate \\
-  NVENC        & NVIDIA Video Encoder \\
+  BD-Rate      & Bjontegaard Delta Rate \\
   QP           & 量化参数 \\
-  YCbCr        & 亮度-色差颜色空间 \\
-  RAPNet       & 码率自适应前处理网络 \\
 \end{notation}
 
 % ---- 正文 ----
