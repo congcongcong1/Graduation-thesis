@@ -9,10 +9,13 @@
 
 RAPNet采用``Pixel Unshuffle $\rightarrow$ 残差卷积 $\rightarrow$ Pixel Shuffle''的三段式架构，在低分辨率特征空间完成残差增强后映射回原分辨率。各层的具体参数如表~\ref{tab:rapnet-detail}所示。
 
-\begin{table}[htbp]
+\begin{table}[H]
   \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
   \caption{RAPNet (Actor) 网络结构详情（$\text{scale}=2$时，$C_{in}=3 \times 2^2 = 12$）}
   \label{tab:rapnet-detail}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llccl}
     \toprule
     \textbf{阶段} & \textbf{层名称} & \textbf{输入$\rightarrow$输出通道} & \textbf{核/步长/填充} & \textbf{激活} \\
@@ -36,6 +39,7 @@ RAPNet采用``Pixel Unshuffle $\rightarrow$ 残差卷积 $\rightarrow$ Pixel Shu
     色度下采样 & \texttt{downsample\_chroma} & $(1,H,W)\rightarrow(1,H/2,W/2)$ & Bilinear $\times 0.5$ & — \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 总参数量约139K。其中5个ResBlock贡献了主要参数量（每个ResBlock含两层$16\rightarrow16$的Conv2d，参数$2\times(16\times16\times3\times3+16) = 4\,640$，五个共$23\,200$），head/tail的$12\leftrightarrow16$通道转换各贡献约$1\,744 / 1\,740$参数。
@@ -46,10 +50,13 @@ RAPNet采用``Pixel Unshuffle $\rightarrow$ 残差卷积 $\rightarrow$ Pixel Shu
 
 ValueNet采用双分支对称结构，分别对原始帧（状态$s$）和增强帧（动作$a$）提取特征，拼接后进行融合，最终输出标量Q值。各层的具体参数如表~\ref{tab:valuenet-detail}所示。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
   \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
   \caption{ValueNet (Critic) 网络结构详情}
   \label{tab:valuenet-detail}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llccl}
     \toprule
     \textbf{阶段} & \textbf{层名称} & \textbf{输入$\rightarrow$输出通道} & \textbf{核/步长/填充} & \textbf{激活} \\
@@ -70,54 +77,71 @@ ValueNet采用双分支对称结构，分别对原始帧（状态$s$）和增强
      & \texttt{head.fc2} & $64 \rightarrow 1$ & — & — \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 % ============================================================
+\Needspace{0.7\textheight}
 \section{损失权重与训练超参数}
 % ============================================================
 
 模型在DDPG风格的Actor-Critic训练框架中使用的完整超参数配置如表~\ref{tab:hyperparams}所示。这些参数源自最终收敛版本（v44），此前经历了近50个版本的迭代调参。
 
-\begin{table}[htbp]
-  \centering
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\setlength{\LTleft}{0pt plus 1fill}
+\setlength{\LTright}{0pt plus 1fill}
+\begin{longtable}{lll}
   \caption{训练主要超参数配置}
-  \label{tab:hyperparams}
-  \begin{tabular}{lll}
-    \toprule
-    \textbf{类别} & \textbf{超参数} & \textbf{设定值} \\
-    \midrule
-    \multirow{4}{*}{迭代与数据}
-      & 训练总迭代次数 & $20\,000$ \\
-      & 每次采样帧数 (clip\_len) & 16 \\
-      & 输入分辨率 & $1920 \times 1080$ \\
-      & Random Crop裁剪尺寸 & $960 \times 540$ \\
-    \midrule
-    \multirow{4}{*}{学习率}
-      & Actor学习率 $\eta_{Actor}$ & $1 \times 10^{-5}$ \\
-      & Critic学习率 $\eta_{Critic}$ & $2 \times 10^{-5}$ \\
-      & 学习率衰减步长 & 每1000 iter \\
-      & 学习率衰减因子 $\gamma$ & $1/3$ \\
-    \midrule
-    \multirow{3}{*}{奖励函数}
-      & 质量权重 $\alpha$ & $200$ \\
-      & 码率权重 $\beta$ & $100$ \\
-      & QP测试点集 $\mathcal{Q}$ & $\{37, 40, 42, 45, 47\}$ \\
-    \midrule
-    \multirow{3}{*}{Actor损失权重}
-      & MSE结构损失 $w_{mse}$ & $5$ \\
-      & 非边缘高频抑制 $w_{hf}$ & $10$ \\
-      & TV平滑损失 $w_{TV}$ & $0.1$ \\
-    \midrule
-    \multirow{2}{*}{残差限幅}
-      & Tanh缩放系数 & $0.05$（即$\pm 5\%$） \\
-      & Cb/Cr通道 & 零均值约束 \\
-    \midrule
-    \multirow{2}{*}{硬件分配}
-      & Actor & GPU 0 (cuda:0) \\
-      & Critic & GPU 1 (cuda:1) \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+  \label{tab:hyperparams}\\
+  \toprule
+  \textbf{类别} & \textbf{超参数} & \textbf{设定值} \\
+  \midrule
+  \endfirsthead
+  \caption[]{训练主要超参数配置（续）}\\
+  \toprule
+  \textbf{类别} & \textbf{超参数} & \textbf{设定值} \\
+  \midrule
+  \endhead
+  \toprule
+  \multicolumn{3}{r}{续下页} \\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  \multirow{4}{*}{迭代与数据}
+    & 训练总迭代次数 & $20\,000$ \\
+    & 每次采样帧数 (clip\_len) & 16 \\
+    & 输入分辨率 & $1920 \times 1080$ \\
+    & Random Crop裁剪尺寸 & $960 \times 540$ \\
+  \midrule
+  \multirow{4}{*}{学习率}
+    & Actor学习率 $\eta_{Actor}$ & $1 \times 10^{-5}$ \\
+    & Critic学习率 $\eta_{Critic}$ & $2 \times 10^{-5}$ \\
+    & 学习率衰减步长 & 每1000 iter \\
+    & 学习率衰减因子 $\gamma$ & $1/3$ \\
+  \midrule
+  \multirow{3}{*}{奖励函数}
+    & 质量权重 $\alpha$ & $200$ \\
+    & 码率权重 $\beta$ & $100$ \\
+    & QP测试点集 $\mathcal{Q}$ & $\{37, 40, 42, 45, 47\}$ \\
+  \midrule
+  \multirow{3}{*}{Actor损失权重}
+    & MSE结构损失 $w_{mse}$ & $5$ \\
+    & 非边缘高频抑制 $w_{hf}$ & $10$ \\
+    & TV平滑损失 $w_{TV}$ & $0.1$ \\
+  \midrule
+  \multirow{2}{*}{残差限幅}
+    & Tanh缩放系数 & $0.05$（即$\pm 5\%$） \\
+    & Cb/Cr通道 & 零均值约束 \\
+  \midrule
+  \multirow{2}{*}{硬件分配}
+    & Actor & GPU 0 (cuda:0) \\
+    & Critic & GPU 1 (cuda:1) \\
+\end{longtable}
+\endgroup
+
+\FloatBarrier
 
 % ============================================================
 \section{FFmpeg编码/解码命令示例}
@@ -181,6 +205,8 @@ COdec/
 |   +-- critic_iter*.pth   # Critic模型权重
 +-- requirements.txt       # Python依赖包
 \end{lstlisting}
+
+\FloatBarrier
 
 % ============================================================
 \chapter{代码提交说明}

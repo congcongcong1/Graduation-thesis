@@ -29,17 +29,19 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \begin{table}[htbp]
   \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
   \caption{FFmpeg硬件加速核心组件}
   \label{tab:ffmpeg-components}
-  \begin{tabular}{lll}
+  \begin{tabularx}{\textwidth}{ll>{\raggedright\arraybackslash}X}
     \toprule
     \textbf{组件} & \textbf{类型} & \textbf{功能说明} \\
     \midrule
     \texttt{hevc\_nvenc}  & 硬件编码器 & 利用GPU上NVENC引擎将原始视频帧压缩为H.265码流 \\
     \texttt{hevc\_cuvid}  & 硬件解码器 & 利用GPU上NVDEC引擎将压缩码流解码为原始视频帧 \\
-    \texttt{scale\_npp}   & GPU缩放滤镜 & 基于NPP库实现GPU端缩放，避免CPU-GPU数据拷贝开销 \\
+    \texttt{scale\_npp}   & GPU缩放滤镜 & 基于NPP库实现GPU端缩放避免CPU-GPU数据拷贝开销 \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用软解硬编方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
@@ -79,7 +81,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 本文所采用的RAPNet前处理框架及其衍生方案，则进一步将强化学习引入编码器感知环节。通过令前处理模型与真实的硬件编码器（如NVENC/AVS）进行环境交互（Codec-in-the-loop），该类方法能够直接利用编码反馈进行策略寻优，同时严格控制参数量与推理开销，以满足流媒体场景对极低延迟的要求。
 
-\begin{table}[htbp]
+\begin{table}[!htbp]
   \centering
   \caption{编码器感知前处理方法对比表}
   \label{tab:encoder-aware-preprocessing}
@@ -88,10 +90,10 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     \toprule
     \textbf{方法} & \textbf{编码器感知} & \textbf{Codec-in-the-loop训练} & \textbf{面向编码器} & \textbf{核心目标} & \textbf{参数量/实时性} & \textbf{适用阶段} \\
     \midrule
-    Down-sampling+SR\cite{ref9-shen2011downsampling} & 弱(间接约束码率)& 否 & 泛用 & 降采样节约带宽 & 需配套超分/较慢 & 编码前缩放+解码后超分 \\
+    Down-sampling+SR\cite{ref9-shen2011downsampling} & 弱(间接约束码率) & 否 & 泛用 & 降采样节约带宽 & 需配套超分/较慢 & 编码前缩放+解码后超分 \\
     RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} & 弱(联合优化误差) & 否(端到端重训练) & HEVC等 & 频域恢复与重建 & 多分支CNN/中等 & 编码前滤波+解码后重建 \\
     EA-MCTF\cite{ref12-vanam2023dcc} & 是(提取QP等特征) & 否(传统自适应滤波) & HEVC & 联合时空特征降噪 & 无(分块算法)/快 & 编码前单独滤波 \\
-    RPP\cite{ref17-ma2023rateperception} & 是(利用替代Proxy) & 否(通过代理网络间接结合) &泛用(HEVC等) & 滤除高频/节约码率 & $\sim$百万级CNN/慢 & 编码前单独预处理 \\
+    RPP\cite{ref17-ma2023rateperception} & 是(利用替代Proxy) & 否(通过代理网络间接结合) & 泛用(HEVC等) & 滤除高频/节约码率 & $\sim$百万级CNN/慢 & 编码前单独预处理 \\
     RAPNet\cite{ref27-zhao2025rapnet} & 是(提取环境特征) & 是(与真实测试集交互评估) & AVS3/VVC等 & 动态策略增强画质 & $<$1M / 极快 & 编码前期实时干预 \\
     \textbf{本文方案} & \textbf{是(NVENC真实反馈)} & \textbf{是(强化学习探索策略)} & \textbf{NVENC} & \textbf{算力自适应/低码率视觉提升} & \textbf{139K/$<$10ms} & \textbf{编码前端极低延迟旁路} \\
     \bottomrule
@@ -110,6 +112,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \caption{视频超分辨率模型性能对比（PSNR(dB)/SSIM），数据整理自文献\cite{ref23-liang2022rvrt}}
   \label{tab:vsr-compare}
   \small
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lcccccc}
     \toprule
     \textbf{Method} & \makecell{\textbf{BI-REDS4}\\(RGB)} & \makecell{\textbf{BI-Vimeo}\\(Y)} & \makecell{\textbf{BI-Vid4}\\(Y)} & \makecell{\textbf{BD-UDM10}\\(Y)} & \makecell{\textbf{BD-Vimeo}\\(Y)} & \makecell{\textbf{BD-Vid4}\\(Y)} \\
@@ -126,6 +129,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     RVRT         & \textbf{32.75/0.9113} & \textbf{38.15/0.9527} & \textbf{27.99/0.8462} & \textbf{40.90/0.9729} & \textbf{38.59/0.9576} & \textbf{29.54/0.8810} \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 为了验证不同模型在实际部署中的可行性，表~\ref{tab:model-param-compare}详细对比了主流模型在$320 \times 180$输入尺寸下的参数量与推理耗时。数据显示，VRT的显存占用高达2149M，而BasicVSR++在保持较高PSNR (32.39dB)的同时，显存仍需223M、推理时延仍为77ms，说明即便是相对高效的视频复原模型，也与实时前处理的部署约束存在明显差距。
@@ -183,6 +187,9 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \centering
   \caption{主流模型复杂度与性能综合对比}
   \label{tab:complexity-performance}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lllccll}
     \toprule
     \textbf{模型架构} & \textbf{适用阶段} & \textbf{参数量} & \textbf{推理耗时} & \textbf{显存占用} & \textbf{性能评价} & \textbf{备注} \\
@@ -193,6 +200,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     MambaIR    & 前处理推荐      & $<$1M        & 极低     & 低    & 优于CNN  & 线性复杂度 \\
     \bottomrule
  \end{tabular}
+  }
 \end{table}
 
 综合上述分析可以看出，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标，转向与硬件编码器紧密结合、兼顾性能与效率协同优化的方向\cite{ref16-ding2021advances}。从表~\ref{tab:complexity-performance}可以看到，VRT、RVRT和BasicVSR++等模型虽然在复原任务中具有代表性，但其实时性仍不足以支撑NVENC流水线中的在线前处理。相比之下，参数规模更小、复杂度更低的轻量化模型更符合本文场景需求。因此，本文优先考虑参数量低于1M、推理时延低于10ms的前处理路线，并以此作为后续RAPNet方案设计与优化的选型依据。

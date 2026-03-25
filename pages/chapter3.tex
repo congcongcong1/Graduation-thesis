@@ -8,9 +8,9 @@
 
 从物理处理链路看，系统以1080p原始YUV序列为输入，先由RAPNet执行编码前增强，再在固定QP控制下进入NVENC硬件编解码链路，最后以感知质量与码率指标对前处理收益进行对比评估。该过程如图~\ref{fig:macro-preprocess-flow}所示。图中同时给出了Baseline分支与前处理分支在同一编码环境下的输出结果，便于直接观察$\Delta V$与$\Delta R$的来源及其工程意义。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
   \centering
-  \resizebox{\textwidth}{!}{\input{pages/fig_macro_preprocess_flow.tex}}
+  \resizebox{0.92\textwidth}{!}{\input{pages/fig_macro_preprocess_flow.tex}}
   \caption{总体前处理流程图}
   \label{fig:macro-preprocess-flow}
 \end{figure}
@@ -50,9 +50,9 @@ Environment由真实硬件编解码流程与质量评估模块共同定义，对
 
 上述映射下的完整交互关系见图~\ref{fig:rl-closed-loop}。该闭环明确了状态输入、动作生成、环境执行、奖励构建与损失回传之间的先后依赖，是后续状态空间、动作空间与奖励函数建模的统一语义基础。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
   \centering
-  \resizebox{\textwidth}{!}{\input{pages/fig_rl_closed_loop.tex}}
+  \resizebox{0.88\textwidth}{!}{\input{pages/fig_rl_closed_loop.tex}}
   \caption{整体强化学习框架示意图}
   \label{fig:rl-closed-loop}
 \end{figure}
@@ -173,9 +173,9 @@ Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由�
 
 RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用具备线性复杂度的轻量级架构，参数量为139K。相较于计算开销较大的Transformer架构\cite{ref22-liang2022vrt}，本文采用具备线性复杂度的轻量级网络作为核心骨干\cite{ref17-ma2023rateperception}。完整的网络架构如图~\ref{fig:actor-critic-system}所示。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
   \centering
-  \resizebox{\textwidth}{!}{\input{pages/fig_actor_critic_system.tex}}
+  \resizebox{0.92\textwidth}{!}{\input{pages/fig_actor_critic_system.tex}}
   \caption{基于Actor-Critic架构的视频前处理优化系统框图}
   \label{fig:actor-critic-system}
 \end{figure}
@@ -266,9 +266,9 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 
 在代码执行层面，训练Pipeline可归纳为采样状态、生成动作、硬件评估和网络更新构成的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。该执行链路如图~\ref{fig:code-training-overview}所示。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
   \centering
-  \resizebox{\textwidth}{!}{\input{pages/fig3_1_pipeline_code.tex}}
+  \resizebox{0.94\textwidth}{!}{\input{pages/fig3_1_pipeline_code.tex}}
   \caption{代码训练流程总览}
   \label{fig:code-training-overview}
 \end{figure}

@@ -175,30 +175,31 @@
 
 其二，\textbf{不公平基线导致训练停滞}出现在v3$\sim$v4阶段。初始基线RD曲线基于完整视频平均码率构建，而训练环境只编码16帧短clip。由于短clip首帧必为I帧，平均到每帧后的码率必然高于长序列基线，导致奖励长期为负，Agent只能退化为恒等映射。该问题说明，对于真实编码器上的强化学习任务，环境定义本身就是优化对象的一部分。只有当训练时的基线、码率统计窗口和编码结构保持一致时，奖励才具有可学习性。
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
   \centering
-  \begin{minipage}[b]{0.48\textwidth}
+  \setlength{\tabcolsep}{0pt}
+  \begin{minipage}[b]{0.44\textwidth}
     \centering
     \includegraphics[width=\textwidth]{data/Cb通道被截断图片.png}
-    \centerline{(a) Cb色度通道被截断为零}
+    {\footnotesize (a) Cb色度通道被截断为零\par}
   \end{minipage}
   \hfill
-  \begin{minipage}[b]{0.48\textwidth}
+  \begin{minipage}[b]{0.44\textwidth}
     \centering
     \includegraphics[width=\textwidth]{data/棋盘格伪影图片.png}
-    \centerline{(b) PixelShuffle引发的棋盘格伪影}
+    {\footnotesize (b) PixelShuffle引发的棋盘格伪影\par}
   \end{minipage}
-  \vskip 0.3cm
-  \begin{minipage}[b]{0.48\textwidth}
+  \vskip 0.15cm
+  \begin{minipage}[b]{0.44\textwidth}
     \centering
     \includegraphics[width=\textwidth]{data/训练崩溃导致图像细节全部丢失.png}
-    \centerline{(c) 训练崩塌导致细节全部丢失}
+    {\footnotesize (c) 训练崩塌导致细节全部丢失\par}
   \end{minipage}
   \hfill
-  \begin{minipage}[b]{0.48\textwidth}
+  \begin{minipage}[b]{0.44\textwidth}
     \centering
     \includegraphics[width=\textwidth]{data/奖励设计不合理约束不了模型导致全面崩溃.png}
-    \centerline{(d) 奖励设计不合理导致模型全面崩溃}
+    {\footnotesize (d) 奖励设计不合理导致模型全面崩溃\par}
   \end{minipage}
   \caption{训练过程中的典型失败案例}
   \label{fig:training-failures}

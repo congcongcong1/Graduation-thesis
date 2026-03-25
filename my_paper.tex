@@ -47,10 +47,28 @@
 \usepackage{xcolor}                    % 颜色支持
 \usepackage{subcaption}                % 子图支持
 \usepackage{booktabs}                  % 三线表
+\usepackage{longtable}                 % 可跨页长表格
 \usepackage{multirow}                  % 表格合并行
 \usepackage{makecell}                  % 表格单元格换行
+\usepackage{tabularx}                  % 自适应列宽表格
+\usepackage{needspace}                 % 避免小节标题孤立在页底
+\usepackage{float}                     % 提供 [H] 就地放置
+\usepackage{placeins}                  % 控制浮动体越节漂移
 \usepackage{tikz}                      % 绘图支持
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+
+% ---- 浮动体版面优化 ----
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.8}
+\setlength{\textfloatsep}{12pt plus 2pt minus 4pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+
 % ---- 代码高亮样式 ----
 \lstset{
   basicstyle=\small\ttfamily,
