@@ -61,7 +61,7 @@
   \end{tabular}
 \end{table}
 
-\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。
+\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。
 
 \begin{table}[htbp]
   \centering

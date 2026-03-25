@@ -67,7 +67,7 @@ Environment由真实硬件编解码流程与质量评估模块共同定义，对
 
 定义$t$时刻的状态空间$s_t$为待编码的原始视频帧序列。鉴于NVENC硬件编码器及主流视频标准广泛采用YCbCr 4:2:0格式，系统首先通过双线性插值(Bilinear Interpolation)将下采样的色度分量(Cb, Cr)上采样至与亮度分量(Y)相同的空间分辨率。最终构建的输入状态张量形状为$(B \times T, 3, H, W)$，其中$T$为时序长度，旨在利用视频帧间的时域相关性辅助决策。
 
-为了克服直接生成像素可能导致的训练震荡与收敛困难问题，系统采用\textbf{残差学习}(Residual Learning)策略。Agent的输出并非直接的像素值，而是针对原始帧的残差修正量。定义$t$时刻的状态为原始视频帧$s_t$，网络输出为残差图$f_{\text{Actor}}(s_t)$，则最终生成的动作$a_t$表示为：
+为了克服直接生成像素可能导致的训练震荡与收敛困难问题，系统采用\textbf{残差学习}(Residual Learning)策略\cite{He2015DeepRL}。Agent的输出并非直接的像素值，而是针对原始帧的残差修正量。定义$t$时刻的状态为原始视频帧$s_t$，网络输出为残差图$f_{\text{Actor}}(s_t)$，则最终生成的动作$a_t$表示为：
 \begin{equation}
   a_t = \text{clamp}(s_t + f_{\text{Actor}}(s_t), 0, 1)
   \label{eq:action}
@@ -283,7 +283,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
   \item \textbf{梯度裁剪}：Actor梯度范数裁剪至1.0，Critic梯度范数裁剪至10.0，防止训练早期因奖励不稳定导致梯度爆炸。
 \end{itemize}
 
-优化器采用Adam，Actor学习率$1 \times 10^{-5}$，Critic学习率$2 \times 10^{-5}$，每1000次迭代衰减为原来的$1/3$。完整的训练流程如算法~\ref{alg:training}所示。
+优化器采用Adam\cite{Kingma2014AdamAM}，Actor学习率$1 \times 10^{-5}$，Critic学习率$2 \times 10^{-5}$，每1000次迭代衰减为原来的$1/3$。完整的训练流程如算法~\ref{alg:training}所示。
 
 \begin{algorithm}[htbp]
 \caption{基于Actor-Critic的编码器感知前处理训练算法}
