@@ -6,19 +6,20 @@
 
 \begin{table}[htbp]
   \centering
-  \small
-  \setlength{\tabcolsep}{4pt}
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.08}
   \caption{主流视频编码标准对比，整理自文献\cite{ref19-badawy2025evolution}}
   \label{tab:video-standards-compare}
   \begin{tabularx}{\textwidth}{
-    >{\raggedright\arraybackslash}p{2.2cm}
+    >{\raggedright\arraybackslash}p{2.0cm}
+    >{\centering\arraybackslash}p{1.1cm}
     >{\centering\arraybackslash}p{1.4cm}
-    >{\centering\arraybackslash}p{1.8cm}
-    >{\centering\arraybackslash}p{1.7cm}
+    >{\centering\arraybackslash}p{1.4cm}
     >{\raggedright\arraybackslash}X
   }
     \toprule
-    \textbf{标准} & \textbf{发布时间} & \textbf{分辨率支持} & \textbf{压缩效率} & \textbf{关键特性} \\
+    \textbf{标准} & \textbf{年份} & \textbf{分辨率} & \textbf{压缩率} & \textbf{关键特性} \\
     \midrule
     H.264/AVC   & 2003 & 最高 4K  & 高      & 先进的帧间预测、帧内预测、熵编码，以及良好的网络适配能力 \\
     HEVC (H.265)& 2013 & 最高 8K  & 高于 H.264 & 并行处理能力更强、块划分更灵活、运动矢量预测精度更高 \\
