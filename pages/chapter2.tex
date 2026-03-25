@@ -2,7 +2,32 @@
 
 \section{视频编码标准演进}
 
-视频编码标准的发展经历了多个重要里程碑。从早期的H.261到如今的H.266/VVC，每一代标准都在压缩效率上持续改进\cite{ref19-badawy2025evolution}。本节简要回顾视频编码标准的发展脉络及其核心技术特点，并从后续实验所需的角度，对视频编码的基本组织方式作简要说明，为后文硬件编码器配置与实验设置提供背景。
+视频编码标准的发展经历了多个重要里程碑。从早期的H.261到如今的H.266/VVC，每一代标准都在压缩效率上持续改进\cite{ref19-badawy2025evolution}。本节简要回顾视频编码标准的发展脉络及其核心技术特点，并从后续实验所需的角度，对视频编码的基本组织方式作简要说明，为后文硬件编码器配置与实验设置提供背景。表~\ref{tab:video-standards-compare}对近年来具有代表性的主流视频编码标准进行了横向比较，可用于概括各标准在分辨率支持、压缩效率与关键特性上的差异。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \caption{主流视频编码标准对比，整理自文献\cite{ref19-badawy2025evolution}}
+  \label{tab:video-standards-compare}
+  \begin{tabularx}{\textwidth}{
+    >{\raggedright\arraybackslash}p{2.2cm}
+    >{\centering\arraybackslash}p{1.4cm}
+    >{\centering\arraybackslash}p{1.8cm}
+    >{\centering\arraybackslash}p{1.7cm}
+    >{\raggedright\arraybackslash}X
+  }
+    \toprule
+    \textbf{标准} & \textbf{发布时间} & \textbf{分辨率支持} & \textbf{压缩效率} & \textbf{关键特性} \\
+    \midrule
+    H.264/AVC   & 2003 & 最高 4K  & 高      & 先进的帧间预测、帧内预测、熵编码，以及良好的网络适配能力 \\
+    HEVC (H.265)& 2013 & 最高 8K  & 高于 H.264 & 并行处理能力更强、块划分更灵活、运动矢量预测精度更高 \\
+    VP9         & 2013 & 最高 4K  & 高      & 免版税，适合 Web 视频场景，支持自适应块划分 \\
+    AV1         & 2018 & 最高 10K & 高于 VP9  & 开放免版税、压缩效率更高，适合高分辨率流媒体传输 \\
+    VVC (H.266) & 2020 & 最高 8K  & 高于 HEVC & 适用范围更广，压缩技术进一步增强，并面向沉浸式媒体场景优化 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
 \subsection{H.265/HEVC标准}
 
