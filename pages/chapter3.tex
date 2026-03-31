@@ -21,7 +21,7 @@
 
 \subsection{Actor-Critic反馈闭环}
 
-在本文系统中，Agent由Actor与Critic共同构成，而非单一网络。Actor对应RAPNet，负责在状态$s_t$下生成前处理动作$a_t$；Critic对应ValueNet，负责评估状态—动作对的价值并提供策略优化方向。其基本决策关系可写为
+在本文系统中，Agent由Actor与Critic共同构成，而非单一网络。Actor对应RAPNet，负责在状态$s_t$下生成前处理动作$a_t$；Critic对应ValueNet，负责评估状态—动作对的价值并提供策略优化方向。其基本决策关系如式~\eqref{eq:agent-action}和式~\eqref{eq:agent-value}所示，其中式~\eqref{eq:agent-action}给出策略生成机制，式~\eqref{eq:agent-value}给出价值评估机制，二者构成策略学习的核心耦合关系：
 \begin{equation}
   a_t = \pi_{\theta}(s_t),
   \label{eq:agent-action}
@@ -30,7 +30,7 @@
   q_t = Q_{\phi}(s_t, a_t),
   \label{eq:agent-value}
 \end{equation}
-其中$\theta$与$\phi$分别表示Actor和Critic参数。式(\ref{eq:agent-action})给出策略生成机制，式(\ref{eq:agent-value})给出价值评估机制，二者构成策略学习的核心耦合关系。
+其中$\theta$与$\phi$分别表示Actor和Critic参数。
 
 Environment由真实硬件编解码流程与质量评估模块共同定义，对应代码中的\texttt{NvencClipEnvQP}。在给定QP条件$q$下，环境对动作执行编码、解码与评估并返回奖励，可抽象为
 \begin{equation}
