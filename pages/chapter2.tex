@@ -1,4 +1,4 @@
-\chapter{国内外研究现状与理论基础}
+\chapter{相关工作与理论基础}
 
 \section{视频编码标准演进}
 
@@ -91,7 +91,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     \midrule
     IRCNN       & 33.86 & 34.69 & 34.58 & 33.78 \\
     FFDNet      & 33.87 & 34.63 & 34.66 & 33.83 \\
-    DnCNN       & 33.90 & 34.60 & 33.45 & 32.98 \\
+    DnCNN\cite{Zhang2017DnCNN}       & 33.90 & 34.60 & 33.45 & 32.98 \\
     DRUNet      & 34.30 & 35.31 & 35.40 & 34.81 \\
     SwinIR      & 34.42 & 35.34 & 35.61 & 35.13 \\
     Restormer   & 34.40 & 35.35 & 35.61 & 35.13 \\
@@ -133,7 +133,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 从视频任务的发展脉络看，Karpathy等人\cite{Karpathy2014LargeScaleVC}较早将深度学习系统性地用于大规模视频分类任务，证明了卷积网络能够直接从视频帧中学习判别特征；随后，双流网络\cite{Simonyan2014TwoStreamCN}通过显式引入光流分支进行时序建模，在动作识别任务上首次稳定超越手工特征方法。进一步地，TimeSformer\cite{Bertasius2021IsSA}将时空注意力直接用于视频建模，通常被视为视频Transformer范式的重要代表工作之一。这些研究说明，视频模型的核心能力正在从局部卷积特征提取逐步走向显式时空关系建模，但与此同时，模型复杂度与部署成本也随之快速上升。
 
-回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{ref5-ho2021rrdncnn}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
+回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{Zhang2017DnCNN}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
 
 在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}、改进EDVR\cite{ref14-huang2022edvr}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
 
