@@ -102,7 +102,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabular}
 \end{table}
 
-为了克服传统画质修复模型计算开销大、与编码系统解耦的局限性，编码器感知（Encoder-aware）\footnote{编码器感知（Encoder-aware）指前/后处理算法不再盲目优化均方误差等客观指标，而是通过代理网络、提取编码参数（如QP、运动向量）或与真实编码器交互的方式，主动适应后续视频编码引擎的压缩机制与实际码流分配策略，从而达到联合优化视觉质量和压缩效率的目的。}前处理逐渐成为在线传输领域的研究热点。这类方法的核心不再是孤立地提升复原指标，而是在模型设计和训练过程中显式考虑后续编码器的压缩特性。如表~\ref{tab:encoder-aware-preprocessing}所示，相关方法经历了从 Down-sampling+SR\cite{ref9-shen2011downsampling} 这类间接码率约束方案，到 RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} 的联合恢复框架，再到可利用QP等编码参数的 EA-MCTF\cite{ref12-vanam2023dcc} 以及引入代理网络的 RPP\cite{ref17-ma2023rateperception} 的演进过程，体现出前处理技术正不断向编码器耦合更紧、复杂度更低、部署性更强的方向发展。
+为了克服传统画质修复模型计算开销大、与编码系统解耦的局限性，编码器感知（Encoder-aware）\footnote{编码器感知（Encoder-aware）指前/后处理算法不再盲目优化均方误差等客观指标，而是通过代理网络、提取编码参数（如QP、运动向量）或与真实编码器交互的方式，主动适应后续视频编码引擎的压缩机制与实际码流分配策略，从而达到联合优化视觉质量和压缩效率的目的。}前处理逐渐成为在线传输领域的研究热点。这类方法的核心不再是孤立地提升复原指标，而是在模型设计和训练过程中显式考虑后续编码器的压缩特性。如表~\ref{tab:encoder-aware-preprocessing}所示，相关方法经历了从 Down-sampling+SR\cite{ref9-shen2011downsampling} 这类间接码率约束方案，到 RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} 的联合恢复框架，再到可利用QP等编码参数的 EA-MCTF\cite{ref12-vanam2023dcc}、面向极低复杂度部署的 ELIM\cite{ref13-wang2024elim} 以及引入代理网络的 RPP\cite{ref17-ma2023rateperception} 的演进过程，体现出前处理技术正不断向编码器耦合更紧、复杂度更低、部署性更强的方向发展。
 
 
 本文所采用的RAPNet前处理框架及其衍生方案，则进一步将强化学习引入编码器感知环节。通过令前处理模型与真实的硬件编码器（如NVENC/AVS）进行环境交互（Codec-in-the-loop），该类方法能够直接利用编码反馈进行策略寻优，同时严格控制参数量与推理开销，以满足流媒体场景对极低延迟的要求。
@@ -135,7 +135,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{ref5-ho2021rrdncnn}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
 
-在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
+在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}、改进EDVR\cite{ref14-huang2022edvr}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
 
 \begin{table}[htbp]
   \centering

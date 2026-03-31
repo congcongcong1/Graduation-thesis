@@ -32,18 +32,21 @@
   pages     = {1725--1732}
 }
 
-@article{Simonyan2014TwoStreamCN,
-  title   = {Two-Stream Convolutional Networks for Action Recognition in Videos},
-  author  = {Simonyan, Karen and Zisserman, Andrew},
-  journal = {arXiv preprint arXiv:1406.2199},
-  year    = {2014}
+@inproceedings{Simonyan2014TwoStreamCN,
+  title     = {Two-Stream Convolutional Networks for Action Recognition in Videos},
+  author    = {Simonyan, Karen and Zisserman, Andrew},
+  booktitle = {Advances in Neural Information Processing Systems 27 (NIPS 2014)},
+  year      = {2014},
+  pages     = {568--576}
 }
 
-@article{Bertasius2021IsSA,
-  title   = {Is Space-Time Attention All You Need for Video Understanding?},
-  author  = {Bertasius, Gedas and Wang, Heng and Torresani, Lorenzo},
-  journal = {arXiv preprint arXiv:2102.05095},
-  year    = {2021}
+@inproceedings{Bertasius2021IsSA,
+  title     = {Is Space-Time Attention All You Need for Video Understanding?},
+  author    = {Bertasius, Gedas and Wang, Heng and Torresani, Lorenzo},
+  booktitle = {Proceedings of the 38th International Conference on Machine Learning},
+  publisher = {PMLR},
+  year      = {2021},
+  pages     = {813--824}
 }
 
 @inproceedings{Vaswani2017AttentionIA,
@@ -53,11 +56,11 @@
   year      = {2017}
 }
 
-@article{Kingma2014AdamAM,
-  title   = {Adam: A Method for Stochastic Optimization},
-  author  = {Kingma, Diederik P. and Ba, Jimmy},
-  journal = {arXiv preprint arXiv:1412.6980},
-  year    = {2014}
+@inproceedings{Kingma2014AdamAM,
+  title     = {Adam: A Method for Stochastic Optimization},
+  author    = {Kingma, Diederik P. and Ba, Jimmy},
+  booktitle = {Proceedings of the 3rd International Conference on Learning Representations (ICLR 2015)},
+  year      = {2015}
 }
 
 @inproceedings{Radford2021LearningTV,
@@ -77,11 +80,11 @@
   pages   = {84--90}
 }
 
-@misc{Radford2018ImprovingLU,
-  title        = {Improving Language Understanding by Generative Pre-Training},
-  author       = {Radford, Alec and Narasimhan, Karthik},
-  year         = {2018},
-  howpublished = {OpenAI technical report}
+@inproceedings{Radford2018ImprovingLU,
+  title     = {Language Models are Few-Shot Learners},
+  author    = {Brown, Tom B. and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and Kaplan, Jared and Dhariwal, Prafulla and Neelakantan, Arvind and Shyam, Pranav and Sastry, Girish and Askell, Amanda and Agarwal, Sandhini and Herbert-Voss, Ariel and Krueger, Gretchen and Henighan, Tom and Child, Rewon and Ramesh, Aditya and Ziegler, Daniel M. and Wu, Jeffrey and Winter, Clemens and Hesse, Christopher and Chen, Mark and Sigler, Eric and Litwin, Mateusz and Gray, Scott and Chess, Benjamin and Clark, Jack and Berner, Christopher and McCandlish, Sam and Radford, Alec and Sutskever, Ilya and Amodei, Dario},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS 2020)},
+  year      = {2020}
 }
 
 @inproceedings{He2021MaskedAA,
@@ -233,16 +236,6 @@
   doi       = {10.1109/WACVW54805.2022.00016},
 }
 
-% [15]
-@inproceedings{ref15-vanam2023dcc2,
-  author    = {Vanam, Rahul and Sethuraman, Sriram},
-  title     = {Improving Compression Efficiency Using an Encoder-Aware Motion Compensated Temporal Filter},
-  booktitle = {2023 Data Compression Conference (DCC)},
-  year      = {2023},
-  pages     = {367},
-  doi       = {10.1109/DCC55655.2023.00085},
-}
-
 % [16]
 @article{ref16-ding2021advances,
   author  = {Ding, Dong and Ma, Zhan and Chen, Di and Chen, Qi and Liu, Zhicong and Zhu, Feng},
@@ -259,8 +252,10 @@
 @article{ref17-ma2023rateperception,
   author  = {Ma, Chao and Wu, Zhiyong and Cai, Cong and Zhang, Peng and Wang, Yang and Zheng, Lin and Chen, Chun and Zhou, Qiang},
   title   = {Rate-Perception Optimized Preprocessing for Video Coding},
-  journal = {arXiv preprint arXiv:2301.10455},
+  journal = {arXiv},
   year    = {2023},
+  doi     = {10.48550/arXiv.2301.10455},
+  url     = {https://arxiv.org/abs/2301.10455},
 }
 
 % [18]
@@ -305,40 +300,45 @@
 @article{ref22-liang2022vrt,
   author  = {Liang, Jingyun and Cao, Jiezhang and Fan, Yuchen and Zhang, Kai and Ranjan, Rakesh and Li, Yawei and Timofte, Radu and Van Gool, Luc},
   title   = {{VRT}: A Video Restoration Transformer},
-  journal = {arXiv preprint arXiv:2201.12288},
-  year    = {2022},
+  journal = {IEEE Transactions on Image Processing},
+  year    = {2024},
+  volume  = {33},
+  pages   = {2171--2182},
+  doi     = {10.1109/TIP.2024.3372454},
 }
 
 % [23]
-@article{ref23-liang2022rvrt,
-  author  = {Liang, Jingyun and Fan, Yuchen and Xiang, Xiaoyu and Ranjan, Rakesh and Ilg, Eddy and Green, Simon and Cao, Jiezhang and Zhang, Kai and Timofte, Radu and Van Gool, Luc},
-  title   = {Recurrent Video Restoration Transformer with Guided Deformable Attention},
-  journal = {arXiv preprint arXiv:2206.02146},
-  year    = {2022},
+@inproceedings{ref23-liang2022rvrt,
+  author    = {Liang, Jingyun and Fan, Yuchen and Xiang, Xiaoyu and Ranjan, Rakesh and Ilg, Eddy and Green, Simon and Cao, Jiezhang and Zhang, Kai and Timofte, Radu and Van Gool, Luc},
+  title     = {Recurrent Video Restoration Transformer with Guided Deformable Attention},
+  booktitle = {Advances in Neural Information Processing Systems 35 (NeurIPS 2022)},
+  year      = {2022},
 }
 
 % [24]
 @misc{ref24-wang2022basicsr,
-  author       = {Wang, Xintao and Xie, Liangbin and Yu, Ke and Chan, Kelvin C. K. and Loy, Chen Change and Dong, Chao},
-  title        = {{BasicSR}: Open Source Image and Video Restoration Toolbox},
-  year         = {2022},
-  howpublished = {GitHub repository, \url{https://github.com/XPixelGroup/BasicSR}},
+  author = {Wang, Xintao and Xie, Liangbin and Yu, Ke and Chan, Kelvin C. K. and Loy, Chen Change and Dong, Chao},
+  title  = {{BasicSR}: Open Source Image and Video Restoration Toolbox},
+  year   = {2022},
+  url    = {https://github.com/XPixelGroup/BasicSR},
 }
 
 % [25]
-@article{ref25-liang2021swinir,
-  author  = {Liang, Jingyun and Cao, Jiezhang and Sun, Guolei and Zhang, Kai and Van Gool, Luc and Timofte, Radu},
-  title   = {{SwinIR}: Image Restoration Using Swin Transformer},
-  journal = {arXiv preprint arXiv:2108.10257},
-  year    = {2021},
+@inproceedings{ref25-liang2021swinir,
+  author    = {Liang, Jingyun and Cao, Jiezhang and Sun, Guolei and Zhang, Kai and Van Gool, Luc and Timofte, Radu},
+  title     = {{SwinIR}: Image Restoration Using Swin Transformer},
+  booktitle = {2021 IEEE/CVF International Conference on Computer Vision Workshops (ICCVW)},
+  publisher = {IEEE},
+  year      = {2021},
+  pages     = {1833--1844},
 }
 
 % [26]
 @misc{ref26-liu2021elegantrl,
-  author       = {Liu, Xiao-Yang and Li, Zechu and Zhu, Ming and Wang, Zhaoran and Zheng, Jiahao},
-  title        = {{ElegantRL}: Massively Parallel Framework for Cloud-Native Deep Reinforcement Learning},
-  year         = {2021},
-  howpublished = {GitHub repository, \url{https://github.com/AI4Finance-Foundation/ElegantRL}},
+  author = {Liu, Xiao-Yang and Li, Zechu and Zhu, Ming and Wang, Zhaoran and Zheng, Jiahao},
+  title  = {{ElegantRL}: Massively Parallel Framework for Cloud-Native Deep Reinforcement Learning},
+  year   = {2021},
+  url    = {https://github.com/AI4Finance-Foundation/ElegantRL},
 }
 
 % [27]
@@ -362,8 +362,8 @@
 
 % [29]
 @article{ref29-tong2025annual,
-  author  = {Tong, Xiuhua and others},
-  title   = {中国图象图形学报：图像图形学发展年度报告（2024--2025）},
+  author  = {陈彤 and 陆明 and 石俊奇 and others},
+  title   = {端到端智能图像视频编码的发展回顾与前沿展望},
   journal = {中国图象图形学报},
-  year    = {2025},
+  year    = {2026},
 }
