@@ -61,7 +61,15 @@
   \end{tabular}
 \end{table}
 
-\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。
+\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。本文所用BD-LPIPS沿用Bjontegaard Delta的计算框架，但将标准BD-Rate中常用的PSNR等失真/质量轴替换为LPIPS；亦即在相同LPIPS目标下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
+
+\begin{equation}
+  \mathrm{BD\mbox{-}LPIPS} = \left[\exp\left(\frac{1}{v_{\max}-v_{\min}}
+  \int_{v_{\min}}^{v_{\max}} \bigl(p_{\text{rap}}(v)-p_{\text{base}}(v)\bigr)\,\mathrm{d}v\right)-1\right]\times 100\%,
+  \label{eq:bd-lpips}
+\end{equation}
+
+其中负值表示在相同LPIPS下RAPNet所需码率低于Baseline，因而代表更优的感知率失真表现。
 
 \begin{table}[htbp]
   \centering
@@ -71,12 +79,12 @@
     \toprule
     \textbf{指标} & \textbf{含义} & \textbf{优劣方向} \\
     \midrule
-    BD-Rate   & 两条RD曲线之间的码率节省百分比      & 负值越大越好 \\
+    BD-Rate   & 相同质量目标下两条RD曲线之间的平均码率差异 & 负值越大越好 \\
     LPIPS     & 基于深度学习的感知质量评价            & 越低越好 \\
     SSIM      & 结构相似性指标，范围$[0, 1]$         & 越高越好 \\
     PSNR      & 峰值信噪比（dB）                     & 越高越好 \\
     参数量     & 模型复杂度（K/M参数个数）            & 越少越好 \\
-    推理时间   & 单帧推理耗时                         & 越短越好 \\
+    推理时间   & 重复测量后统计的平均单帧推理耗时       & 越短越好 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -105,7 +113,7 @@
   \end{tabular}
 \end{table}
 
-表~\ref{tab:bdlpips-results}显示，RAPNet在5个测试序列上的BD-LPIPS均为负值，平均达到$-9.48\%$，说明本文方案在测试码率区间内能够稳定降低感知率失真代价。收益最高的ParkScene和BasketballDrive分别达到$-13.45\%$和$-12.84\%$，表明该方法在运动明显或纹理较丰富的内容上更容易放大前处理收益；BQTerrace的改善幅度为$-4.32\%$，说明高密度细纹理场景下，冗余高频与有效细节之间的边界更难区分。
+表~\ref{tab:bdlpips-results}中的各序列BD-LPIPS均由该序列在QP$\in\{37,40,42,45,47\}$五个测试点上的RD曲线计算得到，表中“平均”项为5个序列结果的算术平均。结果显示，RAPNet在5个测试序列上的BD-LPIPS均为负值，平均达到$-9.48\%$，说明本文方案在测试码率区间内能够稳定降低感知率失真代价。收益最高的ParkScene和BasketballDrive分别达到$-13.45\%$和$-12.84\%$，表明该方法在运动明显或纹理较丰富的内容上更容易放大前处理收益；BQTerrace的改善幅度为$-4.32\%$，说明高密度细纹理场景下，冗余高频与有效细节之间的边界更难区分。
 
 从序列级结果看，策略并非单独追求更低LPIPS或更低码率，而是在两者之间进行自适应折中。Cactus序列中，LPIPS轻微上升$1.92\%$，但码率下降$13.62\%$，综合后仍取得$-11.15\%$的BD-LPIPS收益。这说明在复杂纹理场景中，模型会主动放弃部分编码代价较高且感知收益有限的细节，以换取更优的整体率失真表现。
 
@@ -122,7 +130,7 @@
 
 \begin{table}[htbp]
   \centering
-  \caption{模型效率对比（输入分辨率：$960 \times 540$，GPU：RTX 4090）}
+  \caption{模型效率对比（输入分辨率：$960 \times 540$，GPU：RTX 4090；推理时间为重复测量后的平均单帧耗时）}
   \label{tab:model-efficiency}
   \begin{tabular}{lcc}
     \toprule
@@ -140,7 +148,7 @@
 
 \begin{table}[htbp]
   \centering
-  \caption{编码流水线各阶段时延分解（$960 \times 540$，单位：ms/帧）}
+  \caption{编码流水线各阶段时延分解（$960 \times 540$，单位：ms/帧；结果为重复测量后的平均值）}
   \label{tab:pipeline-latency}
   \begin{tabular}{lcccccc}
     \toprule
@@ -153,9 +161,9 @@
   \end{tabular}
 \end{table}
 
-表~\ref{tab:model-efficiency}显示，在相同输入分辨率和同一RTX 4090平台上，RAPNet参数量仅为139K，单帧推理时间为5.4ms。与DnCNN的40ms、BasicVSR++的77ms、RVRT的183ms和VRT的243ms相比，RAPNet在推理时延上分别约为这些模型的$1/7.4$、$1/14.3$、$1/33.9$和$1/45.0$。结合参数规模看，RAPNet相较于BasicVSR++和VRT的模型规模约为其$1/52$和$1/256$。这说明本文方案不仅参数量更小，而且在同平台复测条件下也更接近实时编码场景的资源约束。
+表~\ref{tab:model-efficiency}显示，在相同输入分辨率和同一RTX 4090平台上，RAPNet参数量仅为139K，单帧平均推理时间为5.4ms。该时间由同平台多次前向测试统计得到。与DnCNN的40ms、BasicVSR++的77ms、RVRT的183ms和VRT的243ms相比，RAPNet在推理时延上分别约为这些模型的$1/7.4$、$1/14.3$、$1/33.9$和$1/45.0$。结合参数规模看，RAPNet相较于BasicVSR++和VRT的模型规模约为其$1/52$和$1/256$。这说明本文方案不仅参数量更小，而且在同平台复测条件下也更接近实时编码场景的资源约束。
 
-结合表~\ref{tab:pipeline-latency}可见，在QP=37/42/45三种配置下，前处理耗时均为5.4ms/帧，占端到端44.1$\sim$44.4ms时延的约12\%。相比之下，仅视频读取和下采样两项I/O操作就分别占用26.7ms和5.9ms。本文方案以5.4ms/帧的额外前处理代价，换取了平均$-9.48\%$的BD-LPIPS收益，且没有成为系统主瓶颈。这一结果直接表明，轻量前处理可以嵌入真实硬件编码链路。
+结合表~\ref{tab:pipeline-latency}可见，在QP=37/42/45三种配置下，前处理平均耗时均为5.4ms/帧，占端到端44.1$\sim$44.4ms平均时延的约12\%。相比之下，仅视频读取和下采样两项I/O操作就分别占用26.7ms和5.9ms。本文方案以5.4ms/帧的额外前处理代价，换取了平均$-9.48\%$的BD-LPIPS收益，且没有成为系统主瓶颈。这一结果直接表明，轻量前处理可以嵌入真实硬件编码链路。
 
 
 \section{强化学习训练演进与案例诊断}
