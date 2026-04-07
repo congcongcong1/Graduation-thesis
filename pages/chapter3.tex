@@ -77,7 +77,7 @@ Environment由真实硬件编解码流程与质量评估模块共同定义，对
 
 在早期的系统设计中，训练时采用2$\times$下采样将1080p视频缩小为540p进行编码。在该方案下，模型的PSNR指标有所提升，但主观观看时却发现画面边缘明显模糊、纹理细节丢失严重。对训练数据进行频谱分析表明问题主要来自：下采样操作直接截断了Nyquist频率以上的高频分量，导致模型从一开始就没有真实的高频纹理，自然也无法学会保护这些细节。这一失败经验促使笔者重新审视训练数据的构建方式。
 
-为此，本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$540 \times 960$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
+为此，本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$960 \times 540$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
 
 \begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}]
 def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
@@ -264,7 +264,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 
 本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的完整执行链路如图~\ref{fig:code-training-overview}所示。
 
-在代码执行层面，训练Pipeline可归纳为采样状态、生成动作、硬件评估和网络更新构成的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。该执行链路如图~\ref{fig:code-training-overview}所示。
+在代码执行层面，训练Pipeline可归纳为采样状态、生成动作、硬件评估和网络更新构成的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。
 
 \begin{figure}[!htbp]
   \centering
@@ -295,7 +295,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 \For{$iter = 1$ \KwTo $N_{max}$}{
   \tcc{环境重置}
   从 $\mathcal{D}$ 随机选取视频 $v$，随机读取16帧1080p YUV\;
-  随机裁剪至 $540 \times 960$ 得到状态 $s = (Y, Cb, Cr)$\;
+  随机裁剪至 $960 \times 540$ 得到状态 $s = (Y, Cb, Cr)$\;
   \tcc{Actor前向: 生成动作}
   $a = (Y_a, Cb_a, Cr_a) \leftarrow \pi_\theta(s)$ \tcp*{在GPU 0上}
   \tcc{环境交互: 编码-解码-评估}
@@ -309,7 +309,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
   $\mathcal{L}_{Critic} \leftarrow \text{MSE}(Q_\phi(s, a), \bar{r}_t)$\;
   反向传播更新 $\phi$，同步参数到 $Q_{\phi'}$\;
   \tcc{Actor更新 (在GPU 0上)}
-  $\mathcal{L}_{Actor} \leftarrow -Q_{\phi'}(s, \pi_\theta(s)) + w_{mse} \cdot \mathcal{L}_{mse} + w_{hf} \cdot \mathcal{L}_{hf}$\;
+  $\mathcal{L}_{Actor} \leftarrow -Q_{\phi'}(s, \pi_\theta(s)) + w_{mse} \cdot \mathcal{L}_{mse} + w_{hf} \cdot \mathcal{L}_{hf} + w_{TV} \cdot \mathcal{L}_{TV}$\;
   反向传播更新 $\theta$，梯度范数裁剪至1.0\;
 }
 \end{algorithm}
