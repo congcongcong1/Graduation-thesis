@@ -61,7 +61,7 @@
   \end{tabular}
 \end{table}
 
-\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。本文所用BD-LPIPS沿用Bjontegaard Delta的计算框架，但将标准BD-Rate中常用的PSNR等失真/质量轴替换为LPIPS；亦即在相同LPIPS目标下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
+\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。本文所用BD-LPIPS沿用Bjontegaard Delta的计算框架，但将标准BD-Rate中以PSNR等客观质量指标作为质量轴的惯例改为以LPIPS作为质量轴；即在相同感知质量水平下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
 
 \begin{equation}
   \mathrm{BD\mbox{-}LPIPS} = \left[\exp\left(\frac{1}{v_{\max}-v_{\min}}
@@ -161,7 +161,7 @@
   \end{tabular}
 \end{table}
 
-表~\ref{tab:model-efficiency}显示，在相同输入分辨率和同一RTX 4090平台上，RAPNet参数量仅为139K，单帧平均推理时间为5.4ms。该时间由同平台多次前向测试统计得到。与DnCNN的40ms、BasicVSR++的77ms、RVRT的183ms和VRT的243ms相比，RAPNet在推理时延上分别约为这些模型的$1/7.4$、$1/14.3$、$1/33.9$和$1/45.0$。结合参数规模看，RAPNet相较于BasicVSR++和VRT的模型规模约为其$1/52$和$1/256$。这说明本文方案不仅参数量更小，而且在同平台复测条件下也更接近实时编码场景的资源约束。
+表~\ref{tab:model-efficiency}显示，在相同输入分辨率和同一RTX 4090平台上，RAPNet参数量仅为139K，单帧平均推理时间为5.4ms（同平台多次前向推理统计均值）。与DnCNN的40ms、BasicVSR++的77ms、RVRT的183ms和VRT的243ms相比，RAPNet在推理时延上分别约为这些模型的$1/7.4$、$1/14.3$、$1/33.9$和$1/45.0$。结合参数规模看，RAPNet相较于BasicVSR++和VRT的模型规模约为其$1/52$和$1/256$。这说明本文方案不仅参数量更小，而且在同平台复测条件下也更接近实时编码场景的资源约束。
 
 结合表~\ref{tab:pipeline-latency}可见，在QP=37/42/45三种配置下，前处理平均耗时均为5.4ms/帧，占端到端44.1$\sim$44.4ms平均时延的约12\%。相比之下，仅视频读取和下采样两项I/O操作就分别占用26.7ms和5.9ms。本文方案以5.4ms/帧的额外前处理代价，换取了平均$-9.48\%$的BD-LPIPS收益，且没有成为系统主瓶颈。这一结果直接表明，轻量前处理可以嵌入真实硬件编码链路。
 
