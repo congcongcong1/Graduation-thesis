@@ -67,7 +67,7 @@ COL_RAP  = '#4a9eda'    # 蓝色框 = RAPNet
 # ── 布局 ──────────────────────────────────────────────
 # 行1: Baseline全图 | RAPNet全图  (各占一半)
 # 行2: Zoom1-Base | Zoom1-RAP | Zoom2-Base | Zoom2-RAP
-fig = plt.figure(figsize=(14, 9))
+fig = plt.figure(figsize=(14, 8))
 
 gs = fig.add_gridspec(
     2, 4,
@@ -75,7 +75,7 @@ gs = fig.add_gridspec(
     hspace=0.06,
     wspace=0.04,
     left=0.02, right=0.98,
-    top=0.91, bottom=0.05
+    top=0.98, bottom=0.02
 )
 
 ax_bl = fig.add_subplot(gs[0, :2])   # Baseline全图 (左2列)
@@ -86,10 +86,8 @@ ax_z1r = fig.add_subplot(gs[1, 1])   # Zoom1 RAPNet
 ax_z2b = fig.add_subplot(gs[1, 2])   # Zoom2 Baseline
 ax_z2r = fig.add_subplot(gs[1, 3])   # Zoom2 RAPNet
 
-def show_img(ax, arr, title, title_color='black', zoom_boxes=None):
+def show_img(ax, arr, zoom_boxes=None):
     ax.imshow(arr)
-    ax.set_title(title, color=title_color, fontsize=11,
-                 fontproperties=zh_font, pad=4, fontweight='bold')
     ax.set_xticks([]); ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_visible(False)
@@ -114,24 +112,20 @@ def show_zoom(ax, arr, ec, label):
         spine.set_linewidth(2.5)
         spine.set_visible(True)
 
-# 全图 + 框标注
+# 全图 + 框标注（无标题）
 show_img(ax_bl, base,
-         'Baseline（NVENC直接编码，QP=45）',
-         title_color=COL_BASE,
          zoom_boxes=[
              (z1, COL_BASE, 'Zoom 1'),
              (z2, '#e09530', 'Zoom 2'),
          ])
 show_img(ax_rp, rap,
-         'RAPNet前处理后编码（QP=45）',
-         title_color=COL_RAP,
          zoom_boxes=[
              (z1, COL_BASE, 'Zoom 1'),
              (z2, '#e09530', 'Zoom 2'),
          ])
 
 # 分隔线（中间加一条细竖线）
-line = matplotlib.lines.Line2D([0.5, 0.5], [0.05, 0.97],
+line = matplotlib.lines.Line2D([0.5, 0.5], [0.02, 0.98],
                                 transform=fig.transFigure,
                                 color='#cccccc', linewidth=1, linestyle='--')
 fig.add_artist(line)
@@ -141,16 +135,6 @@ show_zoom(ax_z1b, z1_base, COL_BASE, 'Zoom 1 — Baseline')
 show_zoom(ax_z1r, z1_rap,  COL_RAP,  'Zoom 1 — RAPNet')
 show_zoom(ax_z2b, z2_base, '#e09530', 'Zoom 2 — Baseline')
 show_zoom(ax_z2r, z2_rap,  '#4ab87a', 'Zoom 2 — RAPNet')
-
-# 总标题说明
-fig.text(0.5, 0.955,
-         'NVENC H.265低码率编码重建帧对比（BQTerrace序列，QP=45）',
-         ha='center', fontsize=12.5,
-         fontproperties=zh_font, fontweight='bold', color='#333333')
-fig.text(0.5, 0.026,
-         '注：两帧均为编码后解码重建帧，非原始帧。左侧可见平坦区块效应与边缘振铃；右侧经RAPNet前处理后感知质量改善。',
-         ha='center', fontsize=8.5,
-         fontproperties=zh_font, color='#555555')
 
 out_path = '/home/user/Graduation-thesis/data/主观图片/background_blocking_comparison.png'
 fig.savefig(out_path, dpi=200, bbox_inches='tight', facecolor='white')
