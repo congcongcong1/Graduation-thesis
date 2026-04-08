@@ -239,22 +239,22 @@
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\textwidth]{data/主观图片/subjective_color_comparison.png}
-  \caption{典型彩色主观对比图：原始帧与RAPNet前处理结果}
+  \caption{Baseline与RAPNet彩色主观对比图（NVENC H.265编码后重建帧，Zoom区域为差异最显著的局部放大）}
   \label{fig:subjective-color}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.92\textwidth]{data/主观图片/subjective_ycbcr_panel.png}
-  \caption{Y/Cb/Cr通道处理前后与差异图对比}
+  \includegraphics[width=0.96\textwidth]{data/主观图片/subjective_ycbcr_panel.png}
+  \caption{Y/Cb/Cr各通道编码重建帧对比与差异图（差异图以99百分位归一化；暖色表示RAPNet增亮，冷色表示减暗）}
   \label{fig:subjective-ycbcr}
 \end{figure}
 
-这种频域选择性与主观观察是一致的。图~\ref{fig:subjective-color}给出了一个典型彩色样例。按照图中标出的两个局部区域可以看到，RAPNet前处理后，浪花与浅海交界处的亮度过渡更连续，岩石边缘与水体接触区域的细节组织也更清晰。该现象说明模型并非对整幅画面做统一锐化或简单平滑，而是在结构显著区域进行幅度受限的定向修正，从而为后续编码保留更稳定的局部结构。
+上述频域观察与编码重建帧的主观结果相互印证。图~\ref{fig:subjective-color}展示了典型测试帧的彩色对比，左侧为Baseline（NVENC直接编码重建），右侧为RAPNet前处理后编码重建，图中红框与黄框分别标出差异最显著的两个局部区域并放大显示。在Zoom 1区域可以看到，Baseline重建中浪花与岩石交界处存在明显的亮度过渡不连续；RAPNet版本中该区域过渡更平滑，纹理结构更完整。Zoom 2所示的岩石与水体边界区域也出现类似现象：RAPNet前处理后的重建帧在边缘细节保持上优于Baseline，这说明前处理对NVENC的码率分配产生了实质性影响。
 
-图~\ref{fig:subjective-ycbcr}进一步从通道角度说明了这一点。可以看到，处理前后最明显的变化主要集中在亮度$Y$通道，差异响应沿船体边缘、水面波纹和远处桥体轮廓分布；相比之下，$Cb/Cr$通道的变化幅度整体更弱，主要表现为随结构边缘分布的局部调整。这与第三章中对色度分量采用小幅残差约束与零均值约束的设计是一致的，即模型优先在亮度结构上完成预补偿，同时避免对色度信息施加过强扰动。
+图~\ref{fig:subjective-ycbcr}进一步从通道层面分析了两种方案的差异。差异图以99百分位绝对差值归一化，暖色（红）表示RAPNet重建帧亮度/色度高于Baseline，冷色（蓝）表示低于Baseline。从$Y$通道差异图可见，亮度变化在全图范围内均有分布，整体偏暖，表明RAPNet引导NVENC在亮度恢复上更为积极；船体轮廓和水面区域的局部冷色响应则对应结构边缘的针对性调整，与频谱图中水平/垂直方向的选择性增强一致。$Cb/Cr$通道的差异幅度显著小于$Y$通道（统计均值绝对差约为$Y$通道的$1/5$），主要集中在水天分界线和船体轮廓附近，与第三章色度分量零均值残差约束的设计意图一致——即模型在不干扰整体色相的前提下，仅对色度边缘区域进行有限幅度的预补偿。
 
-综合来看，对于ParkScene和BasketballDrive等收益较高的序列，前处理后树叶边缘、地面纹理和运动区域附近的块状伪影有所减弱，主体结构的断裂感也更弱。换言之，模型的作用并非对画面进行统一锐化，而是通过增强水平/垂直结构分量、抑制非结构化高频扰动，改变硬件编码器对局部纹理的比特分配方式，从而获得更优的感知率失真结果。考虑到主观评价受显示条件影响较大，本文仍以BD-LPIPS和码率变化作为主要证据，主观观察仅作为机理解释的补充。
+考虑到主观评价受显示设备和观察条件影响较大，本文仍以BD-LPIPS和码率变化作为主要量化依据，主观观察仅用于佐证模型的增强机理。
 
 
 \section{系统消融实验与参数寻优}
