@@ -42,7 +42,7 @@ RAPNet采用``Pixel Unshuffle $\rightarrow$ 残差卷积 $\rightarrow$ Pixel Shu
   }
 \end{table}
 
-总参数量约139K。其中5个ResBlock贡献了主要参数量（每个ResBlock含两层$16\rightarrow16$的Conv2d，参数$2\times(16\times16\times3\times3+16) = 4\,640$，五个共$23\,200$），head/tail的$12\leftrightarrow16$通道转换各贡献约$1\,744 / 1\,740$参数。
+总参数量约113K。其中5个ResBlock贡献了主要参数量（每个ResBlock含两层$16\rightarrow16$的Conv2d，参数$2\times(16\times16\times3\times3+16) = 4\,640$，五个共$23\,200$），head/tail的$12\leftrightarrow16$通道转换各贡献约$1\,744 / 1\,740$参数。
 
 % ============================================================
 \section{ValueNet (Critic) 详细网络结构}

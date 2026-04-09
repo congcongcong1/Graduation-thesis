@@ -121,7 +121,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     EA-MCTF\cite{ref12-vanam2023dcc} & 是(提取QP等特征) & 否(传统自适应滤波) & HEVC & 联合时空特征降噪 & 无(分块算法)/快 & 编码前单独滤波 \\
     RPP\cite{ref17-ma2023rateperception} & 是(利用替代Proxy) & 否(通过代理网络间接结合) & 泛用(HEVC等) & 滤除高频/节约码率 & $\sim$百万级CNN/慢 & 编码前单独预处理 \\
     RAPNet\cite{ref27-zhao2025rapnet} & 是(提取环境特征) & 是(与真实测试集交互评估) & AVS3/VVC等 & 动态策略增强画质 & $<$1M / 极快 & 编码前期实时干预 \\
-    \textbf{本文方案} & \textbf{是(NVENC真实反馈)} & \textbf{是(强化学习探索策略)} & \textbf{NVENC} & \textbf{算力自适应/低码率视觉提升} & \textbf{139K/$<$10ms} & \textbf{编码前端极低延迟旁路} \\
+    \textbf{本文方案} & \textbf{是(NVENC真实反馈)} & \textbf{是(强化学习探索策略)} & \textbf{NVENC} & \textbf{算力自适应/低码率视觉提升} & \textbf{113K/$<$10ms} & \textbf{编码前端极低延迟旁路} \\
     \bottomrule
   \end{tabular}
   }
