@@ -841,10 +841,7 @@
 \hypersetup{
   bookmarksdepth    = 4,
   bookmarksnumbered = true,
-  colorlinks        = true,
-  citecolor         = MaterialGreen,
-  linkcolor         = MaterialPink,
-  urlcolor          = MaterialIndigo}
+  hidelinks}
 \captionsetup{labelsep=quad, font+=bf}
 \newcolumntype{C}{>{\centering\arraybackslash}X}
 \setlist{noitemsep, topsep=\smallskipamount}
