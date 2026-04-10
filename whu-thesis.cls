@@ -421,6 +421,7 @@
 \RequirePackage { tikzpagenodes }
 \RequirePackage { tocloft }
 \RequirePackage { bookmark }
+\hypersetup { hidelinks }
 
 %tag 图片路径
 \graphicspath{{figures/}{logo/}}
