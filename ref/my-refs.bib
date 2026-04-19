@@ -401,3 +401,362 @@
   note    = {网络优先出版, 2026-01-20},
   doi     = {10.11834/jig.250627},
 }
+
+% ============================================================
+%  补充文献：图像质量指标、强化学习算法、图像复原、
+%  视频后处理、学习型编码与编码标准等方向
+% ============================================================
+
+% [30] SSIM 结构相似性
+@article{ref30-wang2004ssim,
+  author  = {Wang, Zhou and Bovik, Alan C. and Sheikh, Hamid R. and Simoncelli, Eero P.},
+  title   = {Image Quality Assessment: From Error Visibility to Structural Similarity},
+  journal = {IEEE Transactions on Image Processing},
+  year    = {2004},
+  volume  = {13},
+  number  = {4},
+  pages   = {600--612},
+  doi     = {10.1109/TIP.2003.819861},
+}
+
+% [31] LPIPS 感知相似度指标
+@inproceedings{ref31-zhang2018lpips,
+  author    = {Zhang, Richard and Isola, Phillip and Efros, Alexei A. and Shechtman, Eli and Wang, Oliver},
+  title     = {The Unreasonable Effectiveness of Deep Features as a Perceptual Metric},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  year      = {2018},
+  pages     = {586--595},
+  doi       = {10.1109/CVPR.2018.00068},
+}
+
+% [32] Bjontegaard Delta Rate 原始技术报告
+@techreport{ref32-bjontegaard2001,
+  author      = {Bjontegaard, Gisle},
+  title       = {Calculation of Average {PSNR} Differences between {RD}-Curves},
+  institution = {ITU-T Video Coding Experts Group (VCEG)},
+  number      = {VCEG-M33},
+  address     = {Austin, TX, USA},
+  year        = {2001},
+}
+
+% [33] H.264/AVC 标准概述
+@article{ref33-wiegand2003avc,
+  author  = {Wiegand, Thomas and Sullivan, Gary J. and Bjontegaard, Gisle and Luthra, Ajay},
+  title   = {Overview of the {H.264/AVC} Video Coding Standard},
+  journal = {IEEE Transactions on Circuits and Systems for Video Technology},
+  year    = {2003},
+  volume  = {13},
+  number  = {7},
+  pages   = {560--576},
+  doi     = {10.1109/TCSVT.2003.815165},
+}
+
+% [34] HEVC 环路滤波（去块效应）
+@article{ref34-norkin2012deblocking,
+  author  = {Norkin, Andrey and Bjontegaard, Gisle and Fuldseth, Arild and Narroschke, Matthias and Ikeda, Masaru and Andersson, Kenneth and Zhou, Minhua and Van der Auwera, Geert},
+  title   = {{HEVC} Deblocking Filter},
+  journal = {IEEE Transactions on Circuits and Systems for Video Technology},
+  year    = {2012},
+  volume  = {22},
+  number  = {12},
+  pages   = {1746--1754},
+  doi     = {10.1109/TCSVT.2012.2223053},
+}
+
+% [35] HEVC SAO 样本自适应偏移
+@article{ref35-fu2012sao,
+  author  = {Fu, Chih-Ming and Alshina, Elena and Alshin, Alexander and Huang, Yu-Wen and Chen, Ching-Yeh and Tsai, Chia-Yang and Hsu, Chih-Wei and Lei, Shaw-Min and Park, Jeong-Hoon and Han, Woo-Jin},
+  title   = {Sample Adaptive Offset in the {HEVC} Standard},
+  journal = {IEEE Transactions on Circuits and Systems for Video Technology},
+  year    = {2012},
+  volume  = {22},
+  number  = {12},
+  pages   = {1755--1764},
+  doi     = {10.1109/TCSVT.2012.2221529},
+}
+
+% [36] DQN 深度强化学习
+@article{ref36-mnih2015dqn,
+  author  = {Mnih, Volodymyr and Kavukcuoglu, Koray and Silver, David and Rusu, Andrei A. and Veness, Joel and Bellemare, Marc G. and Graves, Alex and Riedmiller, Martin and Fidjeland, Andreas K. and Ostrovski, Georg and Petersen, Stig and Beattie, Charles and Sadik, Amir and Antonoglou, Ioannis and King, Helen and Kumaran, Dharshan and Wierstra, Daan and Legg, Shane and Hassabis, Demis},
+  title   = {Human-Level Control through Deep Reinforcement Learning},
+  journal = {Nature},
+  year    = {2015},
+  volume  = {518},
+  number  = {7540},
+  pages   = {529--533},
+  doi     = {10.1038/nature14236},
+}
+
+% [37] DDPG 连续动作空间Actor-Critic
+@inproceedings{ref37-lillicrap2016ddpg,
+  author    = {Lillicrap, Timothy P. and Hunt, Jonathan J. and Pritzel, Alexander and Heess, Nicolas and Erez, Tom and Tassa, Yuval and Silver, David and Wierstra, Daan},
+  title     = {Continuous Control with Deep Reinforcement Learning},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2016},
+}
+
+% [38] SAC 软Actor-Critic
+@inproceedings{ref38-haarnoja2018sac,
+  author    = {Haarnoja, Tuomas and Zhou, Aurick and Abbeel, Pieter and Levine, Sergey},
+  title     = {Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  year      = {2018},
+  pages     = {1861--1870},
+}
+
+% [39] A3C 异步Actor-Critic
+@inproceedings{ref39-mnih2016a3c,
+  author    = {Mnih, Volodymyr and Badia, Adri{\`a} Puigdom{\`e}nech and Mirza, Mehdi and Graves, Alex and Harley, Tim and Lillicrap, Timothy P. and Silver, David and Kavukcuoglu, Koray},
+  title     = {Asynchronous Methods for Deep Reinforcement Learning},
+  booktitle = {Proceedings of the 33rd International Conference on Machine Learning (ICML)},
+  year      = {2016},
+  pages     = {1928--1937},
+}
+
+% [40] GAE 广义优势估计
+@inproceedings{ref40-schulman2016gae,
+  author    = {Schulman, John and Moritz, Philipp and Levine, Sergey and Jordan, Michael and Abbeel, Pieter},
+  title     = {High-Dimensional Continuous Control Using Generalized Advantage Estimation},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2016},
+}
+
+% [41] 强化学习经典教材
+@book{ref41-sutton2018rl,
+  author    = {Sutton, Richard S. and Barto, Andrew G.},
+  title     = {Reinforcement Learning: An Introduction},
+  edition   = {2},
+  address   = {Cambridge, MA},
+  publisher = {MIT Press},
+  year      = {2018},
+}
+
+% [42] SRCNN 超分辨率
+@article{ref42-dong2016srcnn,
+  author  = {Dong, Chao and Loy, Chen Change and He, Kaiming and Tang, Xiaoou},
+  title   = {Image Super-Resolution Using Deep Convolutional Networks},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year    = {2016},
+  volume  = {38},
+  number  = {2},
+  pages   = {295--307},
+  doi     = {10.1109/TPAMI.2015.2439281},
+}
+
+% [43] EDSR 增强残差超分
+@inproceedings{ref43-lim2017edsr,
+  author    = {Lim, Bee and Son, Sanghyun and Kim, Heewon and Nah, Seungjun and Lee, Kyoung Mu},
+  title     = {Enhanced Deep Residual Networks for Single Image Super-Resolution},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
+  year      = {2017},
+  pages     = {136--144},
+  doi       = {10.1109/CVPRW.2017.151},
+}
+
+% [44] SRGAN 感知超分
+@inproceedings{ref44-ledig2017srgan,
+  author    = {Ledig, Christian and Theis, Lucas and Husz{\'a}r, Ferenc and Caballero, Jose and Cunningham, Andrew and Acosta, Alejandro and Aitken, Andrew and Tejani, Alykhan and Totz, Johannes and Wang, Zehan and Shi, Wenzhe},
+  title     = {Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2017},
+  pages     = {4681--4690},
+  doi       = {10.1109/CVPR.2017.19},
+}
+
+% [45] ESRGAN
+@inproceedings{ref45-wang2018esrgan,
+  author    = {Wang, Xintao and Yu, Ke and Wu, Shixiang and Gu, Jinjin and Liu, Yihao and Dong, Chao and Qiao, Yu and Loy, Chen Change},
+  title     = {{ESRGAN}: Enhanced Super-Resolution Generative Adversarial Networks},
+  booktitle = {Proceedings of the European Conference on Computer Vision Workshops (ECCVW)},
+  year      = {2018},
+}
+
+% [46] BM3D 协同滤波去噪
+@article{ref46-dabov2007bm3d,
+  author  = {Dabov, Kostadin and Foi, Alessandro and Katkovnik, Vladimir and Egiazarian, Karen},
+  title   = {Image Denoising by Sparse 3-{D} Transform-Domain Collaborative Filtering},
+  journal = {IEEE Transactions on Image Processing},
+  year    = {2007},
+  volume  = {16},
+  number  = {8},
+  pages   = {2080--2095},
+  doi     = {10.1109/TIP.2007.901238},
+}
+
+% [47] Restormer 高效Transformer复原
+@inproceedings{ref47-zamir2022restormer,
+  author    = {Zamir, Syed Waqas and Arora, Aditya and Khan, Salman and Hayat, Munawar and Khan, Fahad Shahbaz and Yang, Ming-Hsuan},
+  title     = {{Restormer}: Efficient Transformer for High-Resolution Image Restoration},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2022},
+  pages     = {5728--5739},
+  doi       = {10.1109/CVPR52688.2022.00564},
+}
+
+% [48] MambaIR 状态空间模型复原（ECCV 2024 正式版本）
+@inproceedings{ref48-guo2024mambair,
+  author    = {Guo, Hang and Li, Jinmin and Dai, Tao and Ouyang, Zhihao and Ren, Xudong and Xia, Shu-Tao},
+  title     = {{MambaIR}: A Simple Baseline for Image Restoration with State-Space Model},
+  booktitle = {Proceedings of the European Conference on Computer Vision (ECCV)},
+  year      = {2024},
+}
+
+% [49] Perceptual Loss 感知损失（风格迁移与超分）
+@inproceedings{ref49-johnson2016perceptual,
+  author    = {Johnson, Justin and Alahi, Alexandre and Fei-Fei, Li},
+  title     = {Perceptual Losses for Real-Time Style Transfer and Super-Resolution},
+  booktitle = {Proceedings of the European Conference on Computer Vision (ECCV)},
+  year      = {2016},
+  pages     = {694--711},
+  doi       = {10.1007/978-3-319-46475-6\_43},
+}
+
+% [50] VGG 网络
+@inproceedings{ref50-simonyan2015vgg,
+  author    = {Simonyan, Karen and Zisserman, Andrew},
+  title     = {Very Deep Convolutional Networks for Large-Scale Image Recognition},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2015},
+}
+
+% [51] MFQE 多帧压缩视频增强
+@inproceedings{ref51-yang2018mfqe,
+  author    = {Yang, Ren and Xu, Mai and Wang, Zulin and Li, Tianyi},
+  title     = {Multi-Frame Quality Enhancement for Compressed Video},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2018},
+  pages     = {6664--6673},
+  doi       = {10.1109/CVPR.2018.00697},
+}
+
+% [52] MFQE 2.0
+@article{ref52-guan2021mfqe2,
+  author  = {Guan, Zhenyu and Xing, Qunliang and Xu, Mai and Yang, Ren and Liu, Tie and Wang, Zulin},
+  title   = {{MFQE 2.0}: A New Approach for Multi-Frame Quality Enhancement on Compressed Video},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year    = {2021},
+  volume  = {43},
+  number  = {3},
+  pages   = {949--963},
+  doi     = {10.1109/TPAMI.2019.2944806},
+}
+
+% [53] Ballé 端到端图像压缩
+@inproceedings{ref53-balle2017end2end,
+  author    = {Ball{\'e}, Johannes and Laparra, Valero and Simoncelli, Eero P.},
+  title     = {End-to-End Optimized Image Compression},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+% [54] Minnen 联合先验与上下文熵模型
+@inproceedings{ref54-minnen2018hyperprior,
+  author    = {Minnen, David and Ball{\'e}, Johannes and Toderici, George},
+  title     = {Joint Autoregressive and Hierarchical Priors for Learned Image Compression},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2018},
+  pages     = {10771--10780},
+}
+
+% [55] SPSR GAN-based HEVC 后处理
+@article{ref55-yang2018qenet,
+  author  = {Yang, Ren and Xu, Mai and Liu, Tie and Wang, Zulin and Guan, Zhenyu},
+  title   = {Enhancing Quality for {HEVC} Compressed Videos},
+  journal = {IEEE Transactions on Circuits and Systems for Video Technology},
+  year    = {2019},
+  volume  = {29},
+  number  = {7},
+  pages   = {2039--2054},
+  doi     = {10.1109/TCSVT.2018.2867568},
+}
+
+% [56] VMAF 视频感知质量
+@article{ref56-li2019vmaf,
+  author  = {Li, Zhi and Bampis, Christos and Novak, Julie and Aaron, Anne and Swanson, Kyle and Moorthy, Anush and Cock, Jan De},
+  title   = {{VMAF}: The Journey Continues},
+  journal = {SMPTE Motion Imaging Journal},
+  year    = {2019},
+  volume  = {128},
+  number  = {7},
+  pages   = {32--38},
+  doi     = {10.5594/JMI.2019.2925656},
+}
+
+% [57] x265 软件编码器（开源工程）
+@program{ref57-multicorex265,
+  author    = {{MulticoreWare, Inc.}},
+  title     = {{x265 HEVC} Encoder},
+  media     = {OL},
+  publisher = {[S.l.]: x265.org},
+  year      = {2025},
+  urldate   = {2026-03-15},
+  url       = {https://www.x265.org/},
+}
+
+% [58] FFmpeg 多媒体工具链
+@program{ref58-ffmpegproject,
+  author    = {{FFmpeg Project}},
+  title     = {{FFmpeg}: A Complete, Cross-Platform Solution to Record, Convert and Stream Audio and Video},
+  media     = {OL},
+  publisher = {[S.l.]: FFmpeg Project},
+  year      = {2024},
+  urldate   = {2026-03-15},
+  url       = {https://ffmpeg.org/},
+}
+
+% [59] NVIDIA Video Codec SDK 编程指南
+@techreport{ref59-nvidiasdk,
+  author      = {{NVIDIA Corporation}},
+  title       = {{NVIDIA} Video Codec {SDK} Application Note and Programming Guide},
+  institution = {NVIDIA Corporation},
+  address     = {Santa Clara, CA},
+  year        = {2024},
+  note        = {Version 12.x},
+}
+
+% [60] PyTorch 自动微分框架
+@inproceedings{ref60-paszke2019pytorch,
+  author    = {Paszke, Adam and Gross, Sam and Massa, Francisco and Lerer, Adam and Bradbury, James and Chanan, Gregory and Killeen, Trevor and Lin, Zeming and Gimelshein, Natalia and Antiga, Luca and Desmaison, Alban and K{\"o}pf, Andreas and Yang, Edward and DeVito, Zachary and Raison, Martin and Tejani, Alykhan and Chilamkurthy, Sasank and Steiner, Benoit and Fang, Lu and Bai, Junjie and Chintala, Soumith},
+  title     = {{PyTorch}: An Imperative Style, High-Performance Deep Learning Library},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2019},
+  pages     = {8024--8035},
+}
+
+% [61] AV1 编码标准
+@article{ref61-chen2020av1,
+  author  = {Chen, Yue and Mukherjee, Debargha and Han, Jingning and Grange, Adrian and Xu, Yaowu and Parker, Sarah and Chen, Cheng and Su, Hui and Bankoski, James},
+  title   = {An Overview of Coding Tools in {AV1}: the First Video Codec from the Alliance for Open Media},
+  journal = {APSIPA Transactions on Signal and Information Processing},
+  year    = {2020},
+  volume  = {9},
+  pages   = {e6},
+  doi     = {10.1017/ATSIP.2020.2},
+}
+
+% [62] GAN 原始提出
+@inproceedings{ref62-goodfellow2014gan,
+  author    = {Goodfellow, Ian J. and Pouget-Abadie, Jean and Mirza, Mehdi and Xu, Bing and Warde-Farley, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
+  title     = {Generative Adversarial Nets},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2014},
+  pages     = {2672--2680},
+}
+
+% [63] 可扩展并行强化学习系统（Ray/RLlib）
+@inproceedings{ref63-liang2018rllib,
+  author    = {Liang, Eric and Liaw, Richard and Nishihara, Robert and Moritz, Philipp and Fox, Roy and Goldberg, Ken and Gonzalez, Joseph and Jordan, Michael and Stoica, Ion},
+  title     = {{RLlib}: Abstractions for Distributed Reinforcement Learning},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  year      = {2018},
+  pages     = {3053--3062},
+}
+
+% [64] ITU-R BT.2022 HD/UHD 主观评价方法
+@techreport{ref64-itu2014bt2022,
+  author      = {{ITU-R}},
+  title       = {General Viewing Conditions for Subjective Assessment of Quality of {SDTV} and {HDTV} Television Pictures on Flat Panel Displays: {Recommendation ITU-R BT.2022}},
+  institution = {International Telecommunication Union},
+  address     = {Geneva, Switzerland},
+  year        = {2014},
+}

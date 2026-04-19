@@ -1,0 +1,49 @@
+\begin{tikzpicture}[
+  font=\small,
+  frame/.style={rectangle, rounded corners=2pt, draw=black!60, align=center,
+                minimum height=0.95cm, minimum width=0.95cm, fill=white, line width=0.6pt},
+  iframe/.style={frame, fill=red!20, draw=red!55!black},
+  pframe/.style={frame, fill=blue!15, draw=blue!55!black},
+  bframe/.style={frame, fill=green!18, draw=green!45!black},
+  legend/.style={rectangle, draw=black!50, rounded corners=2pt, align=left,
+                 minimum height=0.5cm, minimum width=0.5cm, line width=0.5pt},
+  forward/.style={-{Latex[length=2.0mm,width=1.5mm]}, line width=0.45pt,
+                  draw=blue!60!black, line cap=round},
+  backward/.style={-{Latex[length=2.0mm,width=1.5mm]}, line width=0.45pt,
+                   draw=green!45!black, dashed, line cap=round}
+]
+
+\foreach \i/\t/\s in {
+    0/I/iframe, 1/B/bframe, 2/B/bframe, 3/P/pframe,
+    4/B/bframe, 5/B/bframe, 6/P/pframe, 7/B/bframe,
+    8/B/bframe, 9/P/pframe, 10/I/iframe} {
+  \node[\s] (f\i) at (\i*1.1, 0) {\t};
+  \node[below=0.04cm of f\i, font=\scriptsize, text=black!70] {\i};
+}
+
+\draw[forward] (f0.north east) .. controls +(0.35,0.4) and +(-0.35,0.4) .. (f3.north west);
+\draw[forward] (f3.north east) .. controls +(0.35,0.4) and +(-0.35,0.4) .. (f6.north west);
+\draw[forward] (f6.north east) .. controls +(0.35,0.4) and +(-0.35,0.4) .. (f9.north west);
+\draw[forward] (f9.north east) .. controls +(0.35,0.4) and +(-0.35,0.4) .. (f10.north west);
+
+\draw[backward] (f0.south east) .. controls +(0.35,-0.4) and +(-0.35,-0.4) .. (f1.south west);
+\draw[backward] (f3.south west) .. controls +(-0.35,-0.4) and +(0.35,-0.4) .. (f2.south east);
+\draw[backward] (f3.south east) .. controls +(0.35,-0.4) and +(-0.35,-0.4) .. (f4.south west);
+\draw[backward] (f6.south west) .. controls +(-0.35,-0.4) and +(0.35,-0.4) .. (f5.south east);
+\draw[backward] (f6.south east) .. controls +(0.35,-0.4) and +(-0.35,-0.4) .. (f7.south west);
+\draw[backward] (f9.south west) .. controls +(-0.35,-0.4) and +(0.35,-0.4) .. (f8.south east);
+
+\draw[decorate, decoration={brace, amplitude=4pt, mirror}, line width=0.6pt]
+  ([yshift=-0.9cm]f0.south west) -- ([yshift=-0.9cm]f9.south east)
+  node[midway, below=5pt, font=\small] {GOP \;\;(关键帧间隔 = 10)};
+
+\begin{scope}[shift={(7.2,2.15)}, font=\scriptsize]
+  \node[legend, fill=red!20, draw=red!55!black] (LI) at (0,0) {};
+  \node[right=0.08cm of LI, text=black!80] {I帧：独立编码};
+  \node[legend, fill=blue!15, draw=blue!55!black] (LP) at (0,-0.55) {};
+  \node[right=0.08cm of LP, text=black!80] {P帧：前向预测};
+  \node[legend, fill=green!18, draw=green!45!black] (LB) at (0,-1.10) {};
+  \node[right=0.08cm of LB, text=black!80] {B帧：双向预测};
+\end{scope}
+
+\end{tikzpicture}

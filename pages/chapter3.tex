@@ -131,7 +131,7 @@ Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标�
   \label{eq:critic-loss}
 \end{equation}
 
-Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成：
+Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成。与Johnson等人\cite{ref49-johnson2016perceptual}采用VGG\cite{ref50-simonyan2015vgg}深层特征直接回归感知距离的做法不同，本文将感知约束拆分为可导的频域先验与不可导的编码器奖励两部分，前者通过下列多项正则项显式施加于Actor输出，后者通过Critic隐式传递：
 
 \begin{equation}
   \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}} + w_{\text{TV}} \cdot \mathcal{L}_{\text{TV}}

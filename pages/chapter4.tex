@@ -22,7 +22,7 @@
   \end{tabular}
   \vspace{2pt}
   \begin{flushleft}
-    \small \textit{注：实验中使用双卡并行进行强化学习训练（基于ElegantRL\cite{ref26-liu2021elegantrl}），Actor部署于GPU 0，Critic部署于GPU 1，在当前硬件配置下，单次完整训练约需1天。}
+    \small \textit{注：实验中使用双卡并行进行强化学习训练（基于ElegantRL\cite{ref26-liu2021elegantrl}；与更通用的分布式RL平台RLlib\cite{ref63-liang2018rllib}相比，ElegantRL在单机多卡小规模实验上更易于定制奖励管线），Actor部署于GPU 0，Critic部署于GPU 1，在当前硬件配置下，单次完整训练约需1天。}
   \end{flushleft}
 \end{table}
 
@@ -35,10 +35,10 @@
     \textbf{软件/库} & \textbf{版本} \\
     \midrule
     Python       & 3.10 \\
-    PyTorch      & 2.1.0 \\
+    PyTorch\cite{ref60-paszke2019pytorch}      & 2.1.0 \\
     CUDA         & 12.1 \\
-    FFmpeg       & 6.0 \\
-    NVIDIA Video Codec SDK & 12.0 \\
+    FFmpeg\cite{ref58-ffmpegproject}       & 6.0 \\
+    NVIDIA Video Codec SDK\cite{ref59-nvidiasdk} & 12.0 \\
     ElegantRL\cite{ref26-liu2021elegantrl} & 与训练代码配置一致 \\
     \bottomrule
   \end{tabular}
@@ -61,7 +61,7 @@
   \end{tabular}
 \end{table}
 
-\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。需要说明的是，LPIPS本质上依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。本文所用BD-LPIPS沿用Bjontegaard Delta的计算框架，但将标准BD-Rate中以PSNR等客观质量指标作为质量轴的惯例改为以LPIPS作为质量轴；即在相同感知质量水平下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
+\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。相较于SSIM\cite{ref30-wang2004ssim}以及Netflix提出的VMAF\cite{ref56-li2019vmaf}等传统视频质量度量，LPIPS\cite{ref31-zhang2018lpips}依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}，其对块效应与结构失真的惩罚更贴近人眼主观感受。本文所用BD-LPIPS沿用Bjontegaard\cite{ref32-bjontegaard2001}提出的Delta计算框架，但将标准BD-Rate中以PSNR等客观质量指标作为质量轴的惯例改为以LPIPS作为质量轴；即在相同感知质量水平下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
 
 \begin{equation}
   \mathrm{BD\mbox{-}LPIPS} = \left[\exp\left(\frac{1}{v_{\max}-v_{\min}}
@@ -254,7 +254,7 @@
 
 图~\ref{fig:subjective-ycbcr}进一步从通道层面分析了两种方案的差异。差异图以99百分位绝对差值归一化，暖色（红）表示RAPNet重建帧亮度/色度高于Baseline，冷色（蓝）表示低于Baseline。从$Y$通道差异图可见，亮度变化在全图范围内均有分布，整体偏暖，表明RAPNet引导NVENC在亮度恢复上更为积极；船体轮廓和水面区域的局部冷色响应则对应结构边缘的针对性调整，与频谱图中水平/垂直方向的选择性增强一致。$Cb/Cr$通道的差异幅度显著小于$Y$通道（统计均值绝对差约为$Y$通道的$1/5$），主要集中在水天分界线和船体轮廓附近，与第三章色度分量零均值残差约束的设计意图一致——即模型在不干扰整体色相的前提下，仅对色度边缘区域进行有限幅度的预补偿。
 
-考虑到主观评价受显示设备和观察条件影响较大，本文仍以BD-LPIPS和码率变化作为主要量化依据，主观观察仅用于佐证模型的增强机理。
+考虑到主观评价受显示设备和观察条件影响较大（ITU-R BT.2022\cite{ref64-itu2014bt2022}对平板显示设备下HD/UHD主观评价的观看距离、环境亮度和屏幕尺寸均给出了具体规范），本文仍以BD-LPIPS和码率变化作为主要量化依据，主观观察仅用于佐证模型的增强机理。
 
 
 \section{系统消融实验与参数寻优}

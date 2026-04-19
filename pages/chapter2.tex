@@ -32,7 +32,7 @@
 
 \subsection{H.265/HEVC标准}
 
-H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进主要体现在三个方面：引入了灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块，提高了大尺寸块的编码效率；增强了帧内预测模式，支持35种角度预测方向，提高了纹理区域的预测精度；改进了环路滤波器，包括去块效应滤波器(DBF)和样本自适应偏移(SAO)滤波器。这些技术改进使HEVC在高清视频压缩场景中取得了更高的编码效率，成为当前工业界应用广泛的编码标准之一。
+H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC\cite{ref33-wiegand2003avc}，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进主要体现在三个方面：引入了灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块，提高了大尺寸块的编码效率；增强了帧内预测模式，支持35种角度预测方向，提高了纹理区域的预测精度；改进了环路滤波器，包括去块效应滤波器(DBF)\cite{ref34-norkin2012deblocking}和样本自适应偏移(SAO)滤波器\cite{ref35-fu2012sao}。这些技术改进使HEVC在高清视频压缩场景中取得了更高的编码效率，成为当前工业界应用广泛的编码标准之一。
 
 \subsection{H.266/VVC标准}
 
@@ -46,12 +46,12 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.8\textwidth]{data/图片GOP详解.png}
+  \resizebox{0.92\textwidth}{!}{\input{pages/fig_ipb_gop.tex}}
   \caption{I/P/B帧类型与GOP结构示意图}
   \label{fig:ipb-gop}
 \end{figure}
 
-在工程实践中，FFmpeg是最通用的音视频处理工具，它通过集成NVIDIA的硬件加速组件来调用GPU编解码能力。表~\ref{tab:ffmpeg-components}汇总了本文涉及的核心组件及其功能。
+在工程实践中，FFmpeg\cite{ref58-ffmpegproject}是最通用的音视频处理工具，它通过集成NVIDIA视频编解码SDK\cite{ref59-nvidiasdk}的硬件加速组件来调用GPU编解码能力。表~\ref{tab:ffmpeg-components}汇总了本文涉及的核心组件及其功能。
 
 \begin{table}[htbp]
   \centering
@@ -70,7 +70,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \end{tabularx}
 \end{table}
 
-根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用软解硬编方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
+根据编码器和解码器的选择组合，常见的转码方案可分为三类：软解软编（CPU解码$\to$CPU编码，基于x265\cite{ref57-multicorex265}等开源软件编码器，灵活但速度最慢）、软解硬编（CPU解码$\to$NVENC编码，适合已有解码后原始帧的场景）和硬解硬编（CUVID解码$\to$NVENC编码，数据全程驻留显存，速度最快）。本文的训练系统采用软解硬编方案：通过Python的\texttt{subprocess}模块调用FFmpeg，将AI前处理后的原始YUV帧直接送入NVENC进行H.265编码，随后解码获取重建帧用于质量评估。该方案避免了GPU显存中的格式转换开销，同时保持了与实际部署场景一致的编码行为。
 
 \section{前处理技术分析}
 
@@ -78,7 +78,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \subsection{编码器感知前处理的发展脉络}
 
-从研究脉络看，早期相关工作多源自通用图像复原与去噪任务。近年来，学术界提出了大量针对视频或图像去噪（Denoising）的前处理与后处理模型，如表~\ref{tab:offline-denoise}所示。这类模型大多服务于离线画质增强，其设计目标主要是在公开数据集上获得更高的PSNR/SSIM等客观指标。尽管这类方法在画面修复上效果显著，但其典型应用场景通常不具备严格的实时和低延迟约束，且缺乏对视频编码链路的直接建模。若将此类脱离编码器约束的大模型直接前置到编码器之前，往往难以满足直播、会议和边缘编码等在线业务对吞吐率与时延的要求。
+从研究脉络看，早期相关工作多源自通用图像复原与去噪任务：BM3D\cite{ref46-dabov2007bm3d}等基于协同滤波的传统方法奠定了早期去噪基线，其后DnCNN\cite{Zhang2017DnCNN}等卷积模型将深度学习引入图像复原，并逐步演化为Restormer\cite{ref47-zamir2022restormer}、MambaIR\cite{ref48-guo2024mambair}等更具表达能力的骨干网络。近年来，学术界提出了大量针对视频或图像去噪（Denoising）的前处理与后处理模型，如表~\ref{tab:offline-denoise}所示。这类模型大多服务于离线画质增强，其设计目标主要是在公开数据集上获得更高的PSNR/SSIM\cite{ref30-wang2004ssim}等客观指标。尽管这类方法在画面修复上效果显著，但其典型应用场景通常不具备严格的实时和低延迟约束，且缺乏对视频编码链路的直接建模。若将此类脱离编码器约束的大模型直接前置到编码器之前，往往难以满足直播、会议和边缘编码等在线业务对吞吐率与时延的要求。
 
 \begin{table}[htbp]
   \centering
@@ -133,7 +133,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 从视频任务的发展脉络看，Karpathy等人\cite{Karpathy2014LargeScaleVC}较早将深度学习系统性地用于大规模视频分类任务，证明了卷积网络能够直接从视频帧中学习判别特征；随后，双流网络\cite{Simonyan2014TwoStreamCN}通过显式引入光流分支进行时序建模，在动作识别任务上首次稳定超越手工特征方法。进一步地，TimeSformer\cite{Bertasius2021IsSA}将时空注意力直接用于视频建模，通常被视为视频Transformer范式的重要代表工作之一。这些研究说明，视频模型的核心能力正在从局部卷积特征提取逐步走向显式时空关系建模，但与此同时，模型复杂度与部署成本也随之快速上升。
 
-回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{Zhang2017DnCNN}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
+回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{Zhang2017DnCNN}、SRCNN\cite{ref42-dong2016srcnn}及EDSR\cite{ref43-lim2017edsr}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑；基于生成对抗网络(GAN)\cite{ref62-goodfellow2014gan}的方法如SRGAN\cite{ref44-ledig2017srgan}与ESRGAN\cite{ref45-wang2018esrgan}虽然能够合成锐利纹理，但往往引入与编码器不相容的高频噪声。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
 
 在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}、改进EDVR\cite{ref14-huang2022edvr}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
 
@@ -237,13 +237,13 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{后处理技术分析}
 
-后处理通常在解码后进行，主要用于修复压缩失真、抑制块效应与振铃效应，或进一步执行超分辨率重建\cite{ref2-chan2021basicvsr}。VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}是该方向具有代表性的工作。本文保留这些模型的引用与复杂度对比，主要是将其作为性能参照和技术背景说明，用以反衬实时场景下轻量化前处理方案的必要性。
+后处理通常在解码后进行，主要用于修复压缩失真、抑制块效应与振铃效应，或进一步执行超分辨率重建\cite{ref2-chan2021basicvsr}。针对HEVC/AVC压缩伪影的去除，MFQE\cite{ref51-yang2018mfqe}及其改进版本MFQE~2.0\cite{ref52-guan2021mfqe2}利用相邻高质量帧提升低质量帧的感知质量，QE-Net\cite{ref55-yang2018qenet}进一步在压缩视频上做端到端质量增强；更通用的视频复原框架如VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}则是该方向具有代表性的工作。本文保留这些模型的引用与复杂度对比，主要是将其作为性能参照和技术背景说明，用以反衬实时场景下轻量化前处理方案的必要性。
 
 尽管后处理技术在低码率场景下能够改善解码后视觉效果，但它通常发生在编码完成之后，难以直接降低编码阶段的码率开销，也会进一步增加端到端链路时延。因此，相较于后处理，本文更关注能够在编码前直接影响码率分配与压缩行为的前处理技术，并将其作为后续研究的核心对象。
 
 \section{强化学习基础}
 
-强化学习（Reinforcement Learning, RL）通过智能体与环境的持续交互学习决策策略，其核心目标是最大化长期累计回报。在本文场景中，前处理网络无法直接对硬件编码器内部过程求导，因此更适合采用与编码环境交互并根据反馈更新策略的强化学习范式。形式上，该问题可建模为马尔可夫决策过程 $(S,A,P,R,\gamma)$：状态 $s_t$ 描述当前可观测视频片段及上下文，动作 $a_t$ 对应前处理后的输出帧，奖励 $r_t$ 则反映该动作在码率与感知质量上的综合收益。长期优化目标通常写为
+强化学习（Reinforcement Learning, RL）\cite{ref41-sutton2018rl}通过智能体与环境的持续交互学习决策策略，其核心目标是最大化长期累计回报。在本文场景中，前处理网络无法直接对硬件编码器内部过程求导，因此更适合采用与编码环境交互并根据反馈更新策略的强化学习范式。形式上，该问题可建模为马尔可夫决策过程 $(S,A,P,R,\gamma)$：状态 $s_t$ 描述当前可观测视频片段及上下文，动作 $a_t$ 对应前处理后的输出帧，奖励 $r_t$ 则反映该动作在码率与感知质量上的综合收益。长期优化目标通常写为
 \begin{equation}
 G_t = \sum_{k=0}^{T-t-1} \gamma^k r_{t+k+1},
 \label{eq:rl-return}
@@ -260,7 +260,7 @@ G_t = \sum_{k=0}^{T-t-1} \gamma^k r_{t+k+1},
   Q(s,a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \right],
   \label{eq:qlearning}
 \end{equation}
-二者在低维离散控制问题中有效，但在视频前处理这类高维连续动作空间中，直接构建离散动作价值表会带来严重的维度与样本效率瓶颈。
+二者在低维离散控制问题中有效，DQN\cite{ref36-mnih2015dqn}在Atari游戏控制中也依赖类似的价值学习机制；但在视频前处理这类高维连续动作空间中，直接构建离散动作价值表会带来严重的维度与样本效率瓶颈，DDPG\cite{ref37-lillicrap2016ddpg}、A3C\cite{ref39-mnih2016a3c}与SAC\cite{ref38-haarnoja2018sac}等Actor-Critic变体因此成为连续控制任务中的主流选择。
 
 为此，本文采用策略梯度与价值评估结合的Actor-Critic框架。策略目标可写为
 \begin{equation}
@@ -277,7 +277,7 @@ G_t = \sum_{k=0}^{T-t-1} \gamma^k r_{t+k+1},
   \nabla_\theta J \approx \nabla_\theta Q_\phi\big(s,\pi_\theta(s)\big)
   \label{eq:actor-update}
 \end{equation}
-近似Actor更新方向；Critic则通过最小化
+近似Actor更新方向；为降低策略梯度方差，实践中常进一步引入广义优势估计(GAE)\cite{ref40-schulman2016gae}作为基线校正。Critic则通过最小化
 \begin{equation}
   \mathcal{L}_{\text{Critic}} = \mathrm{MSE}\left(Q_\phi(s,a),\,r\right)
   \label{eq:critic-loss-rl2}
