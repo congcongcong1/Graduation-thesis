@@ -30,7 +30,7 @@
   style = {
     font      = termes,
     math-font = termes,
-    cjk-font  = windows,
+    cjk-font  = mac,
     bib-backend  = bibtex,
     bib-resource = {ref/my-refs.bib},
     % bachelor-encover,  % 启用英文封面（含圆形校徽）
@@ -56,7 +56,8 @@
 \usepackage{float}                     % 提供 [H] 就地放置
 \usepackage{placeins}                  % 控制浮动体越节漂移
 \usepackage{tikz}                      % 绘图支持
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, decorations.pathreplacing}
+\interfootnotelinepenalty=10000
 
 % ---- 浮动体版面优化 ----
 \setcounter{topnumber}{3}
