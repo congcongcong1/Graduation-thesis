@@ -202,7 +202,7 @@
   \label{fig:training-curves}
 \end{figure}
 
-图~\ref{fig:training-failures}给出了训练过程中的典型失败案例，其中前两个案例最能说明环境设计的重要性。其一，\textbf{色度通道崩塌与码率暴涨}发生在v1$\sim$v3阶段。由于亮度损失权重大幅高于色度损失，Actor学会了将Cb通道直接压零，以规避像素误差惩罚；同时，缺乏平滑约束又使输出伴随大量高频噪点，触发编码器分配更多比特。针对这一问题，本文提高了色度权重，引入TV约束，并使用Tanh限制残差幅度，从而阻止网络通过极端输出绕开约束。
+图~\ref{fig:training-failures}给出了训练过程中的典型失败案例。其中图~\ref{fig:training-failures}(a)(b)反映的是环境与损失设计层面的问题，图~\ref{fig:training-failures}(c)(d)反映的是网络结构与训练稳定性层面的问题。其一，\textbf{色度通道崩塌与码率暴涨}发生在v1$\sim$v3阶段。由于亮度损失权重大幅高于色度损失，Actor学会了将Cb通道直接压零以规避像素误差惩罚，图~\ref{fig:training-failures}(a)中\texttt{act/Cb/mean}从约0.45单调衰减至0即是这一过程的直接体现；与此同时，缺乏平滑约束使输出伴随大量高频噪点，触发编码器分配更多比特，进一步引发图~\ref{fig:training-failures}(b)所示的\texttt{eval/avg\_reward}断崖式崩溃。针对这一问题，本文提高了色度权重，引入TV约束，并使用Tanh限制残差幅度，从而阻止网络通过极端输出绕开约束。
 
 其二，\textbf{不公平基线导致训练停滞}出现在v3$\sim$v4阶段。初始基线RD曲线基于完整视频平均码率构建，而训练环境只编码16帧短clip。由于短clip首帧必为I帧，平均到每帧后的码率必然高于长序列基线，导致奖励长期为负，Agent只能退化为恒等映射。该问题说明，对于真实编码器上的强化学习任务，环境定义本身就是优化对象的一部分。只有当训练时的基线、码率统计窗口和编码结构保持一致时，奖励才具有可学习性。
 
@@ -218,7 +218,7 @@
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
     \includegraphics[width=\linewidth]{data/figures_clean/failure_reward_collapse.png}
-    \caption{奖励曲线快速失效}
+    \caption{Cb压零引发的奖励崩溃}
   \end{subfigure}
   \vspace{0.5em}
   \begin{subfigure}[t]{0.48\textwidth}
@@ -230,18 +230,18 @@
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
     \includegraphics[width=\linewidth]{data/figures_clean/failure_detail_lost.png}
-    \caption{训练崩塌后细节退化}
+    \caption{训练崩塌导致的细节退化}
   \end{subfigure}
   \caption{训练过程中的典型失败案例}
   \label{fig:training-failures}
 \end{figure}
 
-在环境问题得到修复后，训练仍经历了两类典型波动。v8$\sim$v13阶段，Critic曾出现梯度爆炸，随后Actor又因PixelShuffle带来棋盘格伪影；通过引入梯度裁剪、恢复TV约束并将输出层初始化为零残差，训练重新回到稳定轨道。v17$\sim$v44阶段，主要工作转向奖励设计与辅助损失的细化：过强的MSE约束会把Actor锁死在极小改动区间，而过度偏向节码的奖励又会诱导模型直接低通滤波。最终收敛到的$w_{mse}=5, w_{hf}=10$配置，本质上是在Critic的策略引导力与先验损失的约束力之间找到可训练的平衡点。
+在环境问题得到修复后，训练仍经历了两类典型波动。v8$\sim$v13阶段，Critic曾出现梯度爆炸，随后Actor又因PixelShuffle带来棋盘格伪影（图~\ref{fig:training-failures}(c)），并进一步恶化为图~\ref{fig:training-failures}(d)所示的全图细节退化；通过引入梯度裁剪、恢复TV约束并将输出层初始化为零残差，训练重新回到稳定轨道。v17$\sim$v44阶段，主要工作转向奖励设计与辅助损失的细化：过强的MSE约束会把Actor锁死在极小改动区间，而过度偏向节码的奖励又会诱导模型直接低通滤波。最终收敛到的$w_{mse}=5, w_{hf}=10$配置，本质上是在Critic的策略引导力与先验损失的约束力之间找到可训练的平衡点。
 
 
 \section{增强机理与主观效果解释}
 
-在确认量化收益和训练可行性后，还需要解释模型实际改变了哪些频率成分。图~\ref{fig:spectrum-analysis}给出了频域层面的观察结果，结合主观现象可以看出，RAPNet并不是均匀增强所有高频，而是在方向性结构和非结构性纹理之间进行选择性调节。
+在确认量化收益和训练可行性后，还需要解释模型实际改变了哪些频率成分。图~\ref{fig:spectrum-analysis}给出了频域层面的观察结果，结合后文的主观对比可以看出，RAPNet并不是均匀增强所有高频，而是在方向性结构和非结构性纹理之间进行选择性调节。
 
 \begin{figure}[htbp]
   \centering
@@ -277,7 +277,7 @@
 
 前述结果依赖于编码链路参数、损失函数和训练样本构造的共同配合。本节将原本分散的参数实验与消融分析合并讨论，突出两类问题：一类是训练环境如何与真实编码行为对齐，另一类是哪些约束真正决定了最终收益。
 
-\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。图~\ref{fig:gop-compare}以BasketballDrive序列为例显示，对于16帧短clip训练场景，显式设置GOP=32会劣于GOP=$-1$默认配置，说明固定GOP会压缩帧间参考的灵活性。与此同时，系统全程采用\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：前者保证亮度/色度对齐与Y域指标计算的一致性，后者消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}则说明，在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此被作为默认下采样算法。
+\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。图~\ref{fig:gop-compare}以BasketballDrive序列为代表显示，对于16帧短clip训练场景，显式设置GOP=32会劣于GOP=$-1$默认配置，说明固定GOP会压缩帧间参考的灵活性（其余测试序列上的趋势与之一致，不再单独列出）。与此同时，系统全程采用\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：前者保证亮度/色度对齐与Y域指标计算的一致性，后者消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}则说明，在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此被作为默认下采样算法。
 
 \begin{figure}[htbp]
   \centering
@@ -302,7 +302,7 @@
     \caption{GOP=32}
     \label{fig:gop-32}
   \end{subfigure}
-  \caption{BasketballDrive序列在不同GOP配置下的下采样算法RD曲线对比}
+  \caption{BasketballDrive序列在不同GOP配置下，多种下采样倍数的RD曲线对比}
   \label{fig:gop-compare}
 \end{figure}
 
