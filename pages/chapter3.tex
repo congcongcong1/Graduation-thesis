@@ -206,6 +206,7 @@ RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 是本�
 
 系统基于NVIDIA Video Codec SDK搭建真实编码环境，通过FFmpeg调用NVENC硬件编码器实现视频帧在训练循环中的实时编解码。编码$\to$解码$\to$质量评估的完整流程通过FFmpeg命令行调用实现，其核心代码如代码~\ref{lst:nvenc-encode}所示。
 
+\Needspace{36\baselineskip}
 \begin{lstlisting}[language=Python, caption={NVENC Encode-Decode-Evaluate Pipeline}, label={lst:nvenc-encode}]
 # === Encode: YUV frames -> HEVC bitstream ===
 encode_cmd = [
