@@ -75,18 +75,18 @@
   \centering
   \caption{实验评价指标}
   \label{tab:eval-metrics}
-  \begin{tabular}{llc}
+  \begin{tabularx}{\textwidth}{lXc}
     \toprule
     \textbf{指标} & \textbf{含义} & \textbf{优劣方向} \\
     \midrule
-    BD-LPIPS  & 以LPIPS为质量轴的Bjontegaard Delta码率差异 & 负值越大越好 \\
+    BD-LPIPS  & 以LPIPS为质量轴的Bjontegaard Delta码率差异 & 负值更优，绝对值越大越好 \\
     LPIPS     & 基于深度学习的感知质量评价            & 越低越好 \\
     SSIM      & 结构相似性指标，范围$[0, 1]$         & 越高越好 \\
     PSNR      & 峰值信噪比（dB）                     & 越高越好 \\
     参数量     & 模型复杂度（K/M参数个数）            & 越少越好 \\
     推理时间   & 重复测量后统计的平均单帧推理耗时       & 越短越好 \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 
@@ -277,7 +277,7 @@
 
 前述结果依赖于编码链路参数、损失函数和训练样本构造的共同配合。本节将原本分散的参数实验与消融分析合并讨论，突出两类问题：一类是训练环境如何与真实编码行为对齐，另一类是哪些约束真正决定了最终收益。
 
-\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。在后续实验中，系统全程采用默认GOP配置、\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：YUV420p保证亮度/色度对齐与Y域指标计算的一致性，CQP消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}则说明，在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此被作为默认下采样算法。
+\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。在后续实验中，系统全程采用默认GOP配置、\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：YUV420p保证亮度/色度对齐与Y域指标计算的一致性，CQP消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}在p1预设与默认GOP下给出了下采样方案的相对趋势，说明在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此本文在涉及缩放的前处理链路中采用Lanczos作为默认下采样算法。
 
 \begin{figure}[htbp]
   \centering
@@ -310,7 +310,7 @@
   \end{tabular}
 \end{table}
 
-结合表~\ref{tab:bdlpips-results}的分序列结果可以进一步看出，非边缘高频抑制在ParkScene和BasketballDrive上收益最为突出，分别达到$-13.45\%$和$-12.84\%$；而BQTerrace仅为$-4.32\%$，说明高密度纹理场景下有效细节与可压缩冗余更难彻底分离。这也进一步证明，损失函数的核心作用不是简单增加锐度，而是通过频域先验约束策略网络的增强方向，使其选择性地作用于对编码器有利的结构信息。
+结合表~\ref{tab:bdlpips-results}的分序列结果可以进一步看出，非边缘高频抑制在ParkScene和BasketballDrive上收益最为突出，分别达到$-13.45\%$和$-12.84\%$；而BQTerrace仅为$-4.32\%$，说明高密度纹理场景下有效细节与可压缩冗余更难彻底分离。这也进一步说明，损失函数的核心作用不是简单增加锐度，而是通过频域先验约束策略网络的增强方向，使其选择性地作用于对编码器有利的结构信息。
 
 \textbf{训练样本构造策略。} 表~\ref{tab:ablation-crop}比较了Random Crop与传统2$\times$下采样两种训练输入构造方式。对于编码前处理任务，2$\times$下采样会在进入策略网络前先抹去部分高频信息，使Actor学习到的更接近下采样图像修正，而不是针对编码器调整原始纹理。Random Crop则直接从1080p原始帧中裁剪出$960\times540$区域，在保持训练分辨率和显存开销不变的同时保留局部高频结构，使状态、动作与奖励之间的一致性更强。这也是完整模型能够最终取得平均$-9.48\%$ BD-LPIPS收益的重要前提。
 
