@@ -185,12 +185,12 @@ RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 采用�
 \textbf{Actor网络（RAPNet）}采用PixelUnshuffle、残差学习和PixelShuffle构成的编码-解码结构：
 
 \begin{enumerate}
-  \item \textbf{输入层}：先将亮度$Y$与上采样到亮度分辨率的色度$Cb/Cr$拼接为$(3, H, W)$输入，再通过PixelUnshuffle重排为$(12, H/2, W/2)$，随后使用$3 \times 3$卷积 + LeakyReLU提取浅层特征；
+  \item \textbf{输入层}：先将亮度$Y$与上采样到亮度分辨率的色度$Cb/Cr$拼接为三通道输入$(3, H, W)$。随后通过 PixelUnshuffle 重排为$(12, H/2, W/2)$，再使用$3 \times 3$卷积和LeakyReLU提取浅层特征；
   \item \textbf{主干层}：5个ResBlock进行残差学习，每个ResBlock包含$3 \times 3$卷积 + LeakyReLU + $3 \times 3$卷积 + 残差连接；
   \item \textbf{输出层}：主干特征经$3 \times 3$卷积映射回12通道后，通过PixelShuffle恢复为$(3, H, W)$残差，再与输入做残差叠加；其中$Cb/Cr$分量在输出前再下采样回YUV420对应的色度分辨率。
 \end{enumerate}
 
-从算子定义看，PixelUnshuffle$(2)$对单通道输入可实现$(1,H,W)\rightarrow(4,H/2,W/2)$的空间重排；然而在本文RAPNet实现中，该算子实际作用于亮度$Y$与经上采样后的色度$Cb/Cr$拼接形成的三通道张量，因此其网络级输入输出关系应表述为$(3,H,W)\rightarrow(12,H/2,W/2)$。这种先通道拼接、后空间重排的设计，使模型能够在低分辨率特征域内联合建模亮度与色度之间的相关性，并在控制参数量与计算复杂度的同时完成跨通道残差增强。
+从算子定义看，单通道输入经过 PixelUnshuffle$(2)$ 后，会由$(1,H,W)$重排为$(4,H/2,W/2)$。在本文RAPNet实现中，该算子作用于由亮度$Y$和上采样色度$Cb/Cr$拼接形成的三通道张量，因此网络级输入输出关系应表述为$(3,H,W)\rightarrow(12,H/2,W/2)$。这种先通道拼接、后空间重排的设计，使模型能够在低分辨率特征域内联合建模亮度与色度的相关性，并在控制参数量与计算复杂度的同时完成跨通道残差增强。
 
 \textbf{Critic网络（ValueNet）}采用双分支特征融合架构：
 
