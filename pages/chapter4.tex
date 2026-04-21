@@ -170,32 +170,32 @@
 
 最终结果并非来自单次稳定收敛，而是在v1至v44的迭代过程中逐步建立起来的。整个训练过程遵循先修正环境、再稳定策略、最后细化损失的演进逻辑，其中环境构建是否合理，直接决定了强化学习是否能够得到有意义的反馈。
 
-图~\ref{fig:training-curves}展示了训练监控曲线。0$\sim$3000次迭代内，\texttt{delta\_r\_mean}（平均码率收益）波动较大但整体保持正值，说明策略优先学到的是节省码率；3000$\sim$10000次迭代内，\texttt{delta\_v\_mean}（平均感知质量变化）逐步接近并越过零点，说明Actor开始在控制码率的同时恢复感知质量；10000次迭代后，\texttt{force\_q\_thrust}（质量奖励推动项）与\texttt{force\_mse\_drag}（像素一致性约束）的相对量级趋于稳定，训练进入以小步修正为主的收敛阶段。该过程反映的不是单一损失下降，而是奖励、约束与编码反馈之间逐步对齐的过程。
+图~\ref{fig:training-curves}展示了训练监控曲线。训练早期，\texttt{delta\_r\_mean}（平均码率收益）出现明显负向波动，说明策略仍处于探索阶段，部分动作会带来码率代价；约1500$\sim$2000次迭代后，该指标越过零点并整体保持为正，表明Actor逐渐学会在编码反馈中获得稳定码率收益。\texttt{delta\_v\_mean}（平均感知质量变化）在早期同样波动较强，随后维持在正值区间，说明模型没有单纯依靠过度平滑换取节码，而是在降低码率的同时保留了感知质量。\texttt{force\_q\_thrust}（质量奖励推动项）随训练持续上升，反映质量收益对策略更新的牵引逐步增强；\texttt{force\_mse\_drag}（像素一致性约束）在早期升高后缓慢回落，说明像素约束主要用于抑制初期不稳定输出，后期训练逐渐转向更细粒度的率失真权衡。整体来看，训练过程体现的是码率收益、感知质量和输出约束之间逐步对齐的过程。
 
 \begin{figure}[htbp]
   \centering
   \captionsetup[subfigure]{font=small}
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/training_delta_r_mean.png}
+    \includegraphics[width=\linewidth]{data/figures_clean/delta_r_mean.png}
     \caption{\texttt{delta\_r\_mean}（平均码率收益）}
   \end{subfigure}
   \hfill
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/training_delta_v_mean.png}
+    \includegraphics[width=\linewidth]{data/figures_clean/delta_v_mean.png}
     \caption{\texttt{delta\_v\_mean}（平均感知质量变化）}
   \end{subfigure}
   \vspace{0.5em}
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/training_force_mse_drag.png}
+    \includegraphics[width=\linewidth]{data/figures_clean/force_mse_drag.png}
     \caption{\texttt{force\_mse\_drag}（像素一致性约束）}
   \end{subfigure}
   \hfill
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/training_force_q_thrust.png}
+    \includegraphics[width=\linewidth]{data/figures_clean/force_q_thrust.png}
     \caption{\texttt{force\_q\_thrust}（质量奖励推动项）}
   \end{subfigure}
   \caption{TensorBoard训练监控关键曲线}
@@ -277,33 +277,13 @@
 
 前述结果依赖于编码链路参数、损失函数和训练样本构造的共同配合。本节将原本分散的参数实验与消融分析合并讨论，突出两类问题：一类是训练环境如何与真实编码行为对齐，另一类是哪些约束真正决定了最终收益。
 
-\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。图~\ref{fig:gop-compare}以BasketballDrive序列为代表显示，对于16帧短clip训练场景，显式设置GOP=32会劣于GOP=$-1$默认配置，说明固定GOP会压缩帧间参考的灵活性（其余测试序列上的趋势与之一致，不再单独列出）。与此同时，系统全程采用\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：前者保证亮度/色度对齐与Y域指标计算的一致性，后者消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}则说明，在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此被作为默认下采样算法。
+\textbf{编码链路参数寻优。} 在正式训练前，首先需要固定NVENC的关键配置，以避免环境不稳定干扰策略学习。图~\ref{fig:preset-compare}表明，p1/p2/p3三个预设的RD曲线几乎重合，而p4在低QP测试区间内略优，因此本文选用\textbf{p4 (medium)}作为统一预设。在后续实验中，系统全程采用默认GOP配置、\textbf{YUV420p}格式和\textbf{CQP}码率控制模式：YUV420p保证亮度/色度对齐与Y域指标计算的一致性，CQP消除了码率控制器的不确定性，便于在QP$\in\{37,40,42,45,47\}$的测试区间内进行BD类指标比较。图~\ref{fig:downsample-compare}则说明，在需要下采样的链路中，2$\times$缩放能够在码率与质量之间取得较稳妥折中，而Lanczos在边缘保持方面优于更强的降采样方案，因此被作为默认下采样算法。
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\textwidth]{data/图片Preset对比实验.png}
   \caption{NVENC编码预设对比实验（HEVC-NVENC, 96帧, 1x Scale）}
   \label{fig:preset-compare}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \captionsetup[subfigure]{font=small}
-  \begin{subfigure}[t]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/gop_default_basketballdrive_clean.png}
-    \caption{GOP=$-1$（默认配置）}
-    \label{fig:gop-default}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[t]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\linewidth]{data/figures_clean/gop32_basketballdrive_clean.png}
-    \caption{GOP=32}
-    \label{fig:gop-32}
-  \end{subfigure}
-  \caption{BasketballDrive序列在不同GOP配置下，多种下采样倍数的RD曲线对比}
-  \label{fig:gop-compare}
 \end{figure}
 
 \begin{figure}[htbp]
