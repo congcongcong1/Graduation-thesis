@@ -32,7 +32,7 @@
 
 \subsection{H.265/HEVC标准}
 
-H.265/HEVC (High Efficiency Video Coding) 由ITU-T VCEG和ISO/IEC MPEG联合开发，于2013年正式发布\cite{ref10-sullivan2012hevc}。相比H.264/AVC\cite{ref33-wiegand2003avc}，HEVC在同等主观质量下可节省约50\%的码率。其核心技术改进主要体现在三个方面：引入了灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块，提高了大尺寸块的编码效率；增强了帧内预测模式，支持35种角度预测方向，提高了纹理区域的预测精度；改进了环路滤波器，包括去块效应滤波器(DBF)\cite{ref34-norkin2012deblocking}和样本自适应偏移(SAO)滤波器\cite{ref35-fu2012sao}。这些技术改进使HEVC在高清视频压缩场景中取得了更高的编码效率，成为当前工业界应用广泛的编码标准之一。
+H.265/\allowbreak HEVC 由 ITU-T VCEG 和 ISO/\allowbreak IEC MPEG 联合开发，并于2013年正式发布\cite{ref10-sullivan2012hevc}。相比 H.264/\allowbreak AVC\cite{ref33-wiegand2003avc}，HEVC 在同等主观质量下可节省约50\%的码率。其核心技术改进主要体现在三个方面：引入了灵活的编码树单元(CTU)划分结构，最大支持$64 \times 64$像素块，提高了大尺寸块的编码效率；增强了帧内预测模式，支持35种角度预测方向，提高了纹理区域的预测精度；改进了环路滤波器，包括去块效应滤波器(DBF)\cite{ref34-norkin2012deblocking}和样本自适应偏移(SAO)滤波器\cite{ref35-fu2012sao}。这些技术改进使HEVC在高清视频压缩场景中取得了更高的编码效率，成为当前工业界应用广泛的编码标准之一。
 
 \subsection{H.266/VVC标准}
 
@@ -190,6 +190,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \caption{主流轻量级模型参数与效率对比，数据整理自文献\cite{ref21-guo2024mambaIRv2}}
   \label{tab:lightweight-compare}
   \small
+  {\setlength{\tabcolsep}{4pt}
   \begin{tabular}{llcccccc}
     \toprule
     \textbf{Method} & \textbf{Scale} & \textbf{\#Param} & \textbf{MACs} & \makecell{\textbf{Set5}\\PSNR/SSIM} & \makecell{\textbf{Set14}\\PSNR/SSIM} & \makecell{\textbf{Manga109}\\PSNR/SSIM} \\
@@ -210,6 +211,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     MambaIRv2-light  & 4x & 790K   & 75.6G  & \textbf{32.51/0.8992} & \textbf{28.84/0.7878} & \textbf{31.24/0.9182} \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 为了更直观地展示不同技术路线的特性，表~\ref{tab:complexity-performance}对比了各主流模型在复杂度与性能上的差异。
@@ -238,7 +240,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 \section{后处理技术分析}
 
-后处理通常在解码后进行，主要用于修复压缩失真、抑制块效应与振铃效应，或进一步执行超分辨率重建\cite{ref2-chan2021basicvsr}。针对HEVC/AVC压缩伪影的去除，MFQE\cite{ref51-yang2018mfqe}及其改进版本MFQE~2.0\cite{ref52-guan2021mfqe2}利用相邻高质量帧提升低质量帧的感知质量，QE-Net\cite{ref55-yang2018qenet}进一步在压缩视频上做端到端质量增强；更通用的视频复原框架如VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}则是该方向具有代表性的工作。本文保留这些模型的引用与复杂度对比，主要是将其作为性能参照和技术背景说明，用以反衬实时场景下轻量化前处理方案的必要性。
+后处理通常在解码后进行，主要用于修复压缩失真、抑制块效应与振铃效应，或进一步执行超分辨率重建\cite{ref2-chan2021basicvsr}。针对HEVC/AVC压缩伪影去除，已有MFQE\cite{ref51-yang2018mfqe}、MFQE~2.0\cite{ref52-guan2021mfqe2}和QE-Net\cite{ref55-yang2018qenet}等代表性方法。更通用的视频复原框架则包括VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}。本文保留这些模型的引用与复杂度对比，主要将其作为性能参照和技术背景说明，用以反衬实时场景下轻量化前处理方案的必要性。
 
 尽管后处理技术在低码率场景下能够改善解码后视觉效果，但它通常发生在编码完成之后，难以直接降低编码阶段的码率开销，也会进一步增加端到端链路时延。因此，相较于后处理，本文更关注能够在编码前直接影响码率分配与压缩行为的前处理技术，并将其作为后续研究的核心对象。
 

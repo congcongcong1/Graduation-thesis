@@ -85,7 +85,7 @@ ValueNet采用双分支对称结构，分别对原始帧（状态$s$）和增强
 \section{损失权重与训练超参数}
 % ============================================================
 
-模型在DDPG风格的Actor-Critic训练框架中使用的完整超参数配置如表~\ref{tab:hyperparams}所示。这些参数源自最终收敛版本（v44），此前经历了近50个版本的迭代调参。
+表~\ref{tab:hyperparams}汇总了模型在DDPG风格Actor-Critic训练框架中的完整超参数配置。这些参数来自最终收敛版本（v44），此前经历了近50个版本的迭代调参。
 
 \begingroup
 \small
@@ -170,7 +170,7 @@ ffmpeg -y \
   decoded.yuv
 \end{lstlisting}
 
-\noindent 其中，\texttt{-rc constqp}表示恒定QP码率控制模式（训练阶段遍历$\mathcal{Q}=\{37,40,42,45,47\}$共5个QP点取平均奖励），\texttt{-preset p4}对应NVENC的Medium编码预设，\texttt{-r 120}为训练序列原始帧率。
+\noindent 其中，\texttt{-rc constqp}表示恒定QP码率控制模式。训练阶段遍历5个QP点，即$\mathcal{Q}=\{37,40,42,45,47\}$，并对奖励取平均。\texttt{-preset p4}对应NVENC的Medium编码预设，\texttt{-r 120}表示训练序列的原始帧率。
 
 % ============================================================
 \section{核心代码文件目录说明}
@@ -212,7 +212,7 @@ COdec/
 \chapter{代码提交说明}
 % ============================================================
 
-本课题相关代码包括模型训练代码（\texttt{rapnet\_hevc\_ppo\_qp\_yuv\_1080p\_v2.py}）、推理与评估脚本（\texttt{eval\_rapnet\_comprehensive.py}）、FFmpeg编码调用脚本及实验结果统计脚本。完整工程已随毕业设计材料一并提交，论文正文与附录主要用于说明关键实现思路与核心流程。
+本课题相关代码包括模型训练代码（\path{rapnet_hevc_ppo_qp_yuv_1080p_v2.py}）、推理与评估脚本（\path{eval_rapnet_comprehensive.py}）、FFmpeg编码调用脚本及实验结果统计脚本。完整工程已随毕业设计材料一并提交，论文正文与附录主要用于说明关键实现思路与核心流程。
 
 如需复现实验结果，请确保以下环境配置：
 \begin{itemize}
