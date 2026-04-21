@@ -36,7 +36,7 @@
 \begin{enumerate}
   \item \textbf{课题研究与方案设计}：调研分析H.265硬件编码(NVENC)相较于软件编码的优劣势，特别是其在低功耗、高效率方面的特点以及可能存在的率失真性能损失问题。研究硬件编码结合轻量前处理的视频编码落地路径，设计一套兼顾低功耗和率失真性能的混合编码框架；
   \item \textbf{系统实现与模型构建}：搭建实验系统，集成NVENC硬件编码器，实现基于强化学习的RAPNet\cite{ref27-zhao2025rapnet}前处理算法，AI算法的模型参数量控制在1M以内；
-  \item \textbf{实验验证与性能评估}：使用1080p分辨率、YUV420格式（NV12转换）的UVG视频序列数据集\cite{ref28-mercat2020uvg}，在CQP模式下以QP$\in\{37,40,42,45,47\}$五个测试点进行量化验证，对比BD-LPIPS感知率失真收益、主观视觉效果、计算复杂度等指标。
+  \item \textbf{实验验证与性能评估}：使用HEVC CTC Class B中的1080p分辨率、YUV420格式标准测试序列\cite{ref-bossen2013ctc}，在CQP模式下以QP$\in\{37,40,42,45,47\}$五个测试点进行量化验证，对比BD-LPIPS感知率失真收益、主观视觉效果、计算复杂度等指标。
 \end{enumerate}
 
 \section{本文创新点}
