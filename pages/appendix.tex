@@ -176,34 +176,38 @@ ffmpeg -y \
 \section{核心代码文件目录说明}
 % ============================================================
 
-项目工程的主要代码文件组织结构如下：
+随论文提交的代码附件已整理为\texttt{毕业论文代码/}目录。该目录只包含论文复现实验所需的源码、工具脚本、依赖说明与模型权重；标准YUV测试序列体积较大，需按本地环境另行放置并修改脚本中的数据集路径。主要文件组织结构如下：
 
 \begin{lstlisting}[basicstyle=\ttfamily\small]
-COdec/
-+-- data/
-|   +-- rapnet_hevc_ppo_qp_yuv_1080p_v2.py
-|   |     # 强化学习主训练脚本
+毕业论文代码/
++-- README.md
++-- requirements.txt
++-- src/
+|   +-- rapnet_hevc_ppo_qp_yuv_1080p.py
+|   |     # 最终1080p Random Crop训练脚本
 |   |     # 包含: RAPNetYCbCr (Actor),
 |   |     #       ValueNetYCbCrPair (Critic),
-|   |     #       DeterministicActorCriticAgent,
-|   |     #       HEVCNvencEnvironment,
-|   |     #       train_loop()
-|   +-- eval_rapnet_comprehensive.py
-|   |     # BD-LPIPS/BD-Rate 综合评估脚本
-|   +-- generate_baseline_rd.py
-|   |     # 基线RD曲线生成工具
+|   |     #       DeterministicACAgentYCbCr,
+|   |     #       NvencClipEnvQP,
+|   |     #       train_rapnet_with_config()
+|   +-- rapnet_hevc_ppo_qp_yuv_simple.py
+|   |     # 下采样版本训练与完整视频评估依赖脚本
+|   +-- gradient_monitor.py
+|         # Actor-Critic梯度诊断工具
++-- tools/
+|   +-- eval_rapnet_full_video.py
+|   |     # 完整视频推理与RD评估脚本
+|   +-- evaluate_time.py
+|   |     # 读入、前处理、编码、解码端到端耗时统计
 |   +-- run_ablation_3variants.py
-|         # 消融实验自动化执行脚本
-+-- test_sequences/
-|   +-- Kimono1_1920x1080_24fps.yuv
-|   +-- BQTerrace_1920x1080_60fps.yuv
-|   +-- BasketballDrive_1920x1080_50fps.yuv
-|   +-- Cactus_1920x1080_50fps.yuv
-|   +-- ParkScene_1920x1080_24fps.yuv
+|         # 三组损失配置消融实验自动化脚本
 +-- checkpoints/
-|   +-- actor_iter*.pth    # Actor模型权重
-|   +-- critic_iter*.pth   # Critic模型权重
-+-- requirements.txt       # Python依赖包
+|   +-- actor_best.pth
+|   +-- critic_best.pth
++-- results/
+|     # 放置Baseline RD曲线JSON与评估输出
++-- tmp/
+      # FFmpeg编码/解码临时文件目录
 \end{lstlisting}
 
 \FloatBarrier
@@ -212,7 +216,18 @@ COdec/
 \chapter{代码提交说明}
 % ============================================================
 
-本课题相关代码包括模型训练代码（\path{rapnet_hevc_ppo_qp_yuv_1080p_v2.py}）、推理与评估脚本（\path{eval_rapnet_comprehensive.py}）、FFmpeg编码调用脚本及实验结果统计脚本。完整工程已随毕业设计材料一并提交，论文正文与附录主要用于说明关键实现思路与核心流程。
+本课题完整代码已随毕业设计材料以\texttt{毕业论文代码/}目录形式提交。代码附件主要包括以下文件：
+
+\begin{itemize}
+  \item \path{src/rapnet_hevc_ppo_qp_yuv_1080p.py}：最终采用的1080p Random Crop训练入口；
+  \item \path{src/rapnet_hevc_ppo_qp_yuv_simple.py}：下采样版本训练与完整视频评估所需的公共函数；
+  \item \path{tools/eval_rapnet_full_video.py}：完整视频推理与RD评估脚本；
+  \item \path{tools/evaluate_time.py}：端到端耗时统计脚本；
+  \item \path{tools/run_ablation_3variants.py}：三组损失配置消融实验脚本；
+  \item \path{checkpoints/actor_best.pth}与\path{checkpoints/critic_best.pth}：最终提交的最优Actor与Critic权重。
+\end{itemize}
+
+为避免论文附录过长，本文不在附录中逐行粘贴完整Python源码，而是给出关键网络结构、训练参数、编码命令和文件组织说明。复现实验时，可先根据\path{requirements.txt}安装依赖，再准备HEVC CTC Class B和UVG等YUV420测试序列，并将脚本中的\texttt{VIDEO\_META\_LIST}路径改为本机数据集路径。Baseline RD曲线JSON可由训练脚本中的Baseline构建函数生成，也可放置于\path{results/}目录后通过环境变量\texttt{RAPNET\_BASELINE\_JSON}指定。
 
 如需复现实验结果，请确保以下环境配置：
 \begin{itemize}

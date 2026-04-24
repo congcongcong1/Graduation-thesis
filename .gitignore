@@ -289,6 +289,7 @@ _minted*
 !logo/whu-name.pdf
 
 reference/
+tmp/pdf_check_appendix/
 
 # local font files
 *.otf
