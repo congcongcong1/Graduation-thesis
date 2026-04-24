@@ -1,12 +1,12 @@
 \chapter{系统设计与实现}
 
-本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。在进入具体设计之前，有必要说明本方案的选型过程。在项目早期，首先尝试了基于监督学习的率感知预处理方案RPP\cite{ref17-ma2023rateperception}。RPP通过自适应DCT损失函数智能去除高频冗余，在原生分辨率、软件编码器(x265)的测试中取得了显著的BD-Rate收益。然而，将其部署到NVENC硬件编码器的2$\times$下采样流水线中时，效果却不如纯硬件基线方案。经过深入的频谱分析和反复调试，定位到两个关键问题：其一，RPP的DCT优化策略是基于输入分辨率设计的，在4K尺度下被判定为可以牺牲的中频纹理，恰恰是下采样后1080p画面中仅存的清晰度来源，导致处理后画面严重发糊；其二，RPP输出的低方差平滑信号干扰了NVENC码率控制算法的正常决策——硬件编码器将其识别为平坦区域并激进地提高QP，最终造成块效应和色带，画质严重过平滑并伴随明显块状伪影。这一失败经验说明，单纯基于监督损失的前处理方案难以直接感知编码器反馈，需要引入一种能够将编码器纳入优化回路的训练范式。因此本文最终选择强化学习框架：将不可导的NVENC视为黑盒环境，通过编码器感知的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，有效缓解低码率场景下的质量崩塌。
+本章详细阐述基于Actor-Critic架构的视频前处理优化系统的整体设计与实现。在进入具体设计之前，有必要说明本方案的选型过程。在项目早期，首先尝试了基于监督学习的率感知预处理方案RPP\cite{ref17-ma2023rateperception}。RPP通过自适应DCT损失函数去除高频冗余，在原生分辨率、软件编码器(x265)的测试中取得了较好的BD-Rate收益。然而，将其迁移到NVENC硬件编码器与2$\times$下采样相关的实验链路中时，效果不如纯硬件基线方案。经过频谱分析和反复调试，定位到两个关键问题：其一，RPP的DCT优化策略是基于输入分辨率设计的，在4K尺度下被判定为可以牺牲的中频纹理，恰恰是下采样后1080p画面中仅存的清晰度来源，导致处理后画面严重发糊；其二，RPP输出的低方差平滑信号在同等QP编码下更容易丢失局部细节，使重建结果出现色带和块状伪影。这一失败经验说明，单纯基于监督损失的前处理方案难以直接感知编码器反馈，需要引入一种能够将编码器纳入优化回路的训练范式。因此本文最终选择强化学习框架：将不可导的NVENC视为黑盒环境，通过编码器感知的方式使前处理模型能够针对硬件编码器的特性（如量化步长、块划分模式）\cite{ref6-li2021deep}进行预补偿，缓解低码率场景下的质量退化。
 
 为保持章节层次清晰，本章按照系统架构与设计思路、前处理优化的设计与训练算法、模块实现与技术细节三部分展开，依次说明整体框架、优化机制以及具体实现。
 
 \section{系统架构与设计思路}
 
-从物理处理链路看，系统以1080p原始YUV序列为输入，先由RAPNet执行编码前增强，再在固定QP控制下进入NVENC硬件编解码链路，最后以感知质量与码率指标对前处理收益进行对比评估。该过程如图~\ref{fig:macro-preprocess-flow}所示。图中同时给出了Baseline分支与前处理分支在同一编码环境下的输出结果，便于直接观察$\Delta V$与$\Delta R$的来源及其工程意义。
+从物理处理链路看，系统以1080p原始YUV序列为源输入，在训练与评测时随机裁剪$960\times540$区域作为编码clip；随后由RAPNet执行编码前增强，再在固定QP控制下进入NVENC硬件编解码链路，最后以感知质量与码率指标对前处理收益进行对比评估。该过程如图~\ref{fig:macro-preprocess-flow}所示。图中同时给出了Baseline分支与前处理分支在同一编码环境下的输出结果，便于直接观察$\Delta V$与$\Delta R$的来源及其工程意义。
 
 \begin{figure}[!htbp]
   \centering
@@ -15,7 +15,7 @@
   \label{fig:macro-preprocess-flow}
 \end{figure}
 
-图~\ref{fig:macro-preprocess-flow}可从三个层面理解整个系统。首先，上层主链路描述了数据流向：1080p原始YUV序列进入RAPNet后生成前处理结果$\hat{x}_t$，该结果与原始输入共同送入后续编码环境。其次，中间部分给出了统一的控制条件，即系统在固定CQP模式和多QP配置下调用NVENC/NVDEC或FFmpeg解码链路，从而保证Baseline分支与前处理分支处于完全一致的编码约束下。最后，下层评价模块分别输出两条分支的Bitrate和VMAF/LPIPS，并通过$\Delta V$与$\Delta R$完成率失真增益分析。
+图~\ref{fig:macro-preprocess-flow}可从三个层面理解整个系统。首先，上层主链路描述了数据流向：系统从1080p原始YUV序列中构造$960\times540$编码clip，随后送入RAPNet生成前处理结果$\hat{x}_t$，该结果与Baseline分支的原始clip共同送入后续编码环境。其次，中间部分给出了统一的控制条件，即系统在固定CQP模式和多QP配置下调用NVENC/NVDEC或FFmpeg解码链路，从而保证Baseline分支与前处理分支处于一致的编码约束下。最后，下层评价模块分别输出两条分支的Bitrate和LPIPS相关质量分数，并通过$\Delta V$与$\Delta R$完成率失真增益分析。
 
 这种双分支并行设计的关键作用在于隔离变量，使前处理模块成为系统中唯一的主动干预因素。换言之，图中的$\Delta V$和$\Delta R$并不反映通用增强模型的离线复原能力，而是专门刻画RAPNet对NVENC编码行为的影响。当RAPNet抑制了编码器不敏感的高频冗余、或增强了更利于压缩保持的结构信息时，这些变化会进一步传导到块划分、量化和码率分配过程中，最终体现为感知质量与码率开销的联动变化。
 
@@ -79,26 +79,16 @@ Environment由真实硬件编解码流程与质量评估模块共同定义，对
 
 为此，本文提出了基于随机裁剪(Random Crop)的训练策略：从1080p原始帧中随机裁剪$960 \times 540$的区域作为训练样本。该策略在保持与下采样方案相同的编码分辨率和计算开销的前提下，完整保留了原始视频的高频信息。核心实现如代码~\ref{lst:random-crop}所示。
 
-\begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}]
+\begin{lstlisting}[language=Python, caption={YUV420 Random Crop}, label={lst:random-crop}, basicstyle=\ttfamily\footnotesize, aboveskip=2pt, belowskip=2pt]
 def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
-    # Random crop a fixed-size region from YUV420 clip
-    # y:  (T,1,H,W)      Luma channel
-    # cb: (T,1,H/2,W/2)  Chroma Cb channel
-    # cr: (T,1,H/2,W/2)  Chroma Cr channel
-    # crop_h, crop_w:    Crop size (must be even)
-    T, _, H, W = y.shape
-    # Random start position (aligned to 2 for YUV420)
+    _, _, H, W = y.shape
     top = random.randint(0, H - crop_h) // 2 * 2
     left = random.randint(0, W - crop_w) // 2 * 2
-    # Crop Y channel
     y_crop = y[:, :, top:top+crop_h, left:left+crop_w]
-    # Crop Cb/Cr channels (half resolution)
     top_c, left_c = top // 2, left // 2
-    crop_h_c, crop_w_c = crop_h // 2, crop_w // 2
-    cb_crop = cb[:, :, top_c:top_c+crop_h_c,
-                      left_c:left_c+crop_w_c]
-    cr_crop = cr[:, :, top_c:top_c+crop_h_c,
-                      left_c:left_c+crop_w_c]
+    h_c, w_c = crop_h // 2, crop_w // 2
+    cb_crop = cb[:, :, top_c:top_c+h_c, left_c:left_c+w_c]
+    cr_crop = cr[:, :, top_c:top_c+h_c, left_c:left_c+w_c]
     return y_crop, cb_crop, cr_crop
 \end{lstlisting}
 
@@ -113,7 +103,7 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
   \label{eq:reward}
 \end{equation}
 
-式中，$V_{cur}$ 和 $R_{cur}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数（采用LPIPS取负，值越大表示质量越好）和实际码率（kbps）；$V_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。$\alpha = 200$ 与 $\beta = 100$ 为超参数，分别用于调控感知质量增益与码率节省的权重。
+式中，$V_{cur}$ 和 $R_{cur}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数和实际码率（kbps）；$V_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。本文训练代码中LPIPS原始值越低表示感知质量越好，因此在奖励计算前定义$V=-\mathrm{LPIPS}$，使$V$越大表示质量越好；第四章表格和BD-LPIPS计算仍报告原始LPIPS口径。$\alpha = 200$ 与 $\beta = 100$ 为超参数，分别用于调控感知质量增益与码率节省的权重。
 
 为了实现跨QP点的泛化能力，系统在每个训练step中对同一段视频分别在QP $\in \{37, 40, 42, 45, 47\}$ 五个量化参数下进行编码，取所有QP点的平均奖励作为最终奖励信号：
 
@@ -206,39 +196,23 @@ RAPNet (Rate-Adaptive Pre-processing Network)\cite{ref27-zhao2025rapnet} 是本�
 
 系统基于NVIDIA Video Codec SDK搭建真实编码环境，通过FFmpeg调用NVENC硬件编码器实现视频帧在训练循环中的实时编解码。编码$\to$解码$\to$质量评估的完整流程通过FFmpeg命令行调用实现，其核心代码如代码~\ref{lst:nvenc-encode}所示。
 
-\Needspace{36\baselineskip}
-\begin{lstlisting}[language=Python, caption={NVENC Encode-Decode-Evaluate Pipeline}, label={lst:nvenc-encode}]
-# === Encode: YUV frames -> HEVC bitstream ===
-encode_cmd = [
-    ffmpeg_bin, "-y",
-    "-f", "rawvideo", "-pix_fmt", "yuv420p",
-    "-s:v", f"{W_enc}x{H_enc}",   # Resolution 960x540
-    "-r", str(fps),                # Frame rate
-    "-i", yuv_input_path,          # Input: preprocessed YUV
-    "-c:v", "hevc_nvenc",          # NVENC hardware encoder
-    "-rc", "constqp",              # Constant QP mode
-    "-qp", str(qp),                # Quantization parameter
-    "-preset", "p4",               # Preset (p4=medium)
-    "-profile:v", "main",          # Main Profile
-    "-pix_fmt", "yuv420p",
-    bitstream_path,                # Output: HEVC bitstream
-]
-subprocess.run(encode_cmd, check=True,
-               stdout=subprocess.DEVNULL, stderr=log_file)
-# === Decode: HEVC bitstream -> YUV frames ===
-decode_cmd = [
-    ffmpeg_bin, "-y",
-    "-i", bitstream_path,          # Input: HEVC bitstream
-    "-f", "rawvideo",
-    "-pix_fmt", "yuv420p",
-    decoded_yuv_path,              # Output: decoded YUV
-]
-subprocess.run(decode_cmd, check=True,
-               stdout=subprocess.DEVNULL,
-               stderr=subprocess.DEVNULL)
-# === Quality: compute LPIPS and bitrate ===
-V_cur = compute_lpips(ref_clip_bgr, decoded_clip_bgr)
-bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
+\Needspace{18\baselineskip}
+\begin{lstlisting}[language=Python, caption={NVENC Encode-Decode-Evaluate Pipeline}, label={lst:nvenc-encode}, basicstyle=\ttfamily\footnotesize, aboveskip=4pt, belowskip=4pt]
+def encode_decode_evaluate(preproc_yuv, ref_clip_bgr, qp):
+    encode_cmd = make_nvenc_cmd(
+        preproc_yuv, bitstream_path, W_enc, H_enc,
+        fps=fps, qp=qp, pix_fmt="yuv420p", preset="p4")
+    run_ffmpeg(encode_cmd, stderr=log_file)
+
+    decode_cmd = make_decode_cmd(
+        bitstream_path, decoded_yuv_path, pix_fmt="yuv420p")
+    run_ffmpeg(decode_cmd)
+
+    decoded = read_yuv420(decoded_yuv_path, W_enc, H_enc)
+    V_cur = compute_quality_metric_unified(
+        ref_clip_bgr, decoded, metric="lpips")
+    R_cur = video_size_kb * 8192 / 1000.0 / duration
+    return V_cur, R_cur
 \end{lstlisting}
 
 编码环境的核心参数配置如表~\ref{tab:nvenc-config}所示。
@@ -265,7 +239,7 @@ bitrate_kbps = video_size_kb * 8192 / 1000.0 / duration
 
 本文的训练算法基于Actor-Critic框架，采用多GPU并行策略：Actor(RAPNet)部署在GPU 0上，Critic(ValueNet)部署在GPU 1上，通过参数同步机制保持一致性。训练过程中的完整执行链路如图~\ref{fig:code-training-overview}所示。
 
-在代码执行层面，训练Pipeline可归纳为采样状态、生成动作、硬件评估和网络更新构成的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取VMAF/LPIPS与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。
+在代码执行层面，训练Pipeline可归纳为采样状态、生成动作、硬件评估和网络更新构成的单步迭代闭环。环境先从数据集中随机采样并裁剪YUV片段构造状态，Actor输出前处理动作后，环境在多QP设置下调用FFmpeg与NVENC完成编码与解码，并提取质量分数（本文使用$-\mathrm{LPIPS}$作为奖励中的质量项）与Bitrate指标，计算相对Baseline的奖励，再由Critic与Actor分别完成价值拟合与策略更新。
 
 \begin{figure}[!htbp]
   \centering

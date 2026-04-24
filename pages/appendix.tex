@@ -153,7 +153,7 @@ ValueNet采用双分支对称结构，分别对原始帧（状态$s$）和增强
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\small,breaklines=true]
 ffmpeg -y \
   -f rawvideo -pix_fmt yuv420p \
-  -s:v 960x540 -r 120 \
+  -s:v 960x540 -r ${fps} \
   -i input_crop.yuv \
   -c:v hevc_nvenc \
   -rc constqp -qp 42 \
@@ -170,7 +170,7 @@ ffmpeg -y \
   decoded.yuv
 \end{lstlisting}
 
-\noindent 其中，\texttt{-rc constqp}表示恒定QP码率控制模式。训练阶段遍历5个QP点，即$\mathcal{Q}=\{37,40,42,45,47\}$，并对奖励取平均。\texttt{-preset p4}对应NVENC的Medium编码预设，\texttt{-r 120}表示训练序列的原始帧率。
+\noindent 其中，\texttt{-rc constqp}表示恒定QP码率控制模式。训练阶段遍历5个QP点，即$\mathcal{Q}=\{37,40,42,45,47\}$，并对奖励取平均。\texttt{-preset p4}对应NVENC的Medium编码预设，\texttt{-r \${fps}}表示按当前序列原始帧率设置时间基准，例如BasketballDrive/Cactus为50fps，ParkScene/Kimono1为24fps，BQTerrace为60fps。
 
 % ============================================================
 \section{核心代码文件目录说明}

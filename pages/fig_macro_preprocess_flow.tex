@@ -9,15 +9,15 @@
   flow/.style={-{Latex[length=3.0mm,width=2.3mm]}, line width=0.8pt, line cap=round, line join=round}
 ]
 
-\node[frame] (in) at (-4.6,4.4) {1080p原始YUV序列\\$x_t$};
+\node[frame] (in) at (-4.6,4.4) {1080p源YUV序列\\Random Crop\\$960\times540$ clip};
 \node[stage] (rapnet) at (0,4.4) {强化学习前处理网络\\RAPNet};
 \node[frame] (pre) at (4.6,4.4) {前处理后YUV序列\\$\hat{x}_t$};
 
 \node[note] (cfg) at (0,2.6) {编码控制参数\\CQP模式，QP$\in\{37,40,42,45,47\}$};
 \node[codec] (codec) at (0,0.95) {Video Codec（硬件编码环境）\\NVENC编码（HEVC, CQP）$\rightarrow$硬件解码（NVDEC/FFmpeg）};
 
-\node[metric] (base) at (-3.2,-1.8) {Baseline分支输出\\Bitrate, VMAF/LPIPS};
-\node[metric] (ours) at (3.2,-1.8) {前处理分支输出\\Bitrate, VMAF/LPIPS};
+\node[metric] (base) at (-3.2,-1.8) {Baseline分支输出\\Bitrate, LPIPS质量分数};
+\node[metric] (ours) at (3.2,-1.8) {前处理分支输出\\Bitrate, LPIPS质量分数};
 \node[compare] (cmp) at (0,-4.0) {率失真对比与增益分析\\$\Delta V,\Delta R$};
 
 \draw[flow] (in.east) -- (rapnet.west);
