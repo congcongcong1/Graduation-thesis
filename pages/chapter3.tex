@@ -97,7 +97,6 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 \subsection{奖励机制与损失函数}
 
 针对低码率场景下主观画质与传输带宽的平衡问题，设计了基于参考率失真(Reference Rate-Distortion)特性的复合奖励函数。该函数旨在引导模型在相对于基准编码器(Baseline)的相对增益中寻找平衡点，其数学形式定义如下：
-
 \begin{equation}
   R_{total} = \alpha \cdot \frac{V_{cur} - V_{ref}}{|V_{ref}|} + \beta \cdot \frac{R_{ref} - R_{cur}}{R_{ref}}
   \label{eq:reward}
@@ -106,7 +105,6 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 式中，$V_{cur}$ 和 $R_{cur}$ 分别为当前动作经NVENC编码后解码获得的感知质量分数和实际码率（kbps）；$V_{ref}$ 和 $R_{ref}$ 为基准编码器在同等量化参数(QP)下的参考值。本文训练代码中LPIPS原始值越低表示感知质量越好，因此在奖励计算前定义$V=-\mathrm{LPIPS}$，使$V$越大表示质量越好；第四章表格和BD-LPIPS计算仍报告原始LPIPS口径。$\alpha = 200$ 与 $\beta = 100$ 为超参数，分别用于调控感知质量增益与码率节省的权重。
 
 为了实现跨QP点的泛化能力，系统在每个训练step中对同一段视频分别在QP $\in \{37, 40, 42, 45, 47\}$ 五个量化参数下进行编码，取所有QP点的平均奖励作为最终奖励信号：
-
 \begin{equation}
   \bar{r}_t = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}} R_{total}(q)
   \label{eq:reward-avg}
@@ -115,14 +113,12 @@ def random_crop_yuv420_clip(y, cb, cr, crop_h, crop_w):
 为了确保Actor-Critic架构的稳定收敛，针对Critic和Actor网络分别设计了差异化的优化目标。
 
 Critic网络(ValueNet)旨在准确评估当前策略的价值，其训练目标是最小化预测$Q$值与真实奖励$R_{total}$之间的均方误差(MSE)：
-
 \begin{equation}
   \mathcal{L}_{\text{Critic}} = \text{MSE}(V(s_t, a_t), R_{total})
   \label{eq:critic-loss}
 \end{equation}
 
 Actor网络(RAPNet)的损失函数采用频域感知的复合损失策略，由策略梯度损失和多个空间频率感知正则项构成。与Johnson等人\cite{ref49-johnson2016perceptual}采用VGG\cite{ref50-simonyan2015vgg}深层特征直接回归感知距离的做法不同，本文将感知约束拆分为可导的频域先验与不可导的编码器奖励两部分，前者通过下列多项正则项显式施加于Actor输出，后者通过Critic隐式传递：
-
 \begin{equation}
   \mathcal{L}_{\text{Actor}} = \underbrace{-Q_\phi(s, \pi_\theta(s))}_{\text{策略梯度}} + w_{\text{mse}} \cdot \mathcal{L}_{\text{mse}} + w_{\text{hf}} \cdot \mathcal{L}_{\text{hf}} + w_{\text{TV}} \cdot \mathcal{L}_{\text{TV}}
   \label{eq:actor-loss-full}

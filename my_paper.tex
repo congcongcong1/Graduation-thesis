@@ -1,6 +1,6 @@
 ﻿% ============================================================
 %  my_paper.tex — 罗子聪 本科毕业论文
-%  题目：面向NVENC低码率视频编码的强化学习前处理方法
+%  题目：基于强化学习的视频编码前处理方案
 %  编译方式：XeLaTeX → BibTeX → XeLaTeX → XeLaTeX
 % ============================================================
 
@@ -9,8 +9,8 @@
 
 \whusetup{
   info = {
-    title      = {面向NVENC低码率视频编码的强化学习前处理方法},
-    title*     = {Reinforcement-Learning Preprocessing for Low-Bitrate NVENC Video Coding},
+    title      = {基于强化学习的视频编码前处理方案},
+    title*     = {A Reinforcement Learning-Based Preprocessing Scheme for Video Coding},
     department  = {电子信息学院},
     department* = {School of Electronic Information},
     author      = {罗子聪},
@@ -23,9 +23,9 @@
     major   = {通信工程},
     major*  = {Communication Engineering},
     year  = 2026,
-    month = 4,
-    keywords  = {NVENC, 低码率视频编码, 强化学习, 前处理, 感知率失真优化},
-    keywords* = {NVENC, Low-Bitrate Video Coding, Reinforcement Learning, Preprocessing, Perceptual Rate-Distortion Optimization},
+    month = 5,
+    keywords  = {视频编码, 强化学习, 前处理, NVENC, 感知率失真优化},
+    keywords* = {Video Coding, Reinforcement Learning, Preprocessing, NVENC, Perceptual Rate-Distortion Optimization},
   },
   style = {
     font      = termes,
@@ -35,7 +35,7 @@
     bib-resource = {ref/my-refs.bib},
     license = false,  % 关闭末尾“武汉大学学位论文使用授权协议书”
     % bachelor-encover,  % 启用英文封面（含圆形校徽）
-    %library,  % 电子版提交时取消注释，去掉所有空白页
+    library,  % 电子版提交时取消注释，去掉所有空白页
     chapter-page-header,  % 章节首页显示页眉
     % fullwidth-stop = catcode,  % ⚠️ 慎用：会导致正文句号消失，不建议开启
   }
@@ -107,6 +107,7 @@
         \__whu_spread_box:nn{2.5cm}{年月日}
     \group_end:
   }
+
 \ExplSyntaxOff
 
 % ---- 参考优秀硕士论文的版面微调 ----

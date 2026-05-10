@@ -61,8 +61,7 @@
   \end{tabular}
 \end{table}
 
-\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。相较于SSIM\cite{ref30-wang2004ssim}以及Netflix提出的VMAF\cite{ref56-li2019vmaf}等传统视频质量度量，LPIPS\cite{ref31-zhang2018lpips}依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。需要说明的是，第三章奖励函数中使用$-\mathrm{LPIPS}$作为质量分数，以保证奖励中的质量项越大越好；本章报告的LPIPS和BD-LPIPS均采用原始LPIPS方向，即数值越低表示感知距离越小。本文所用BD-LPIPS沿用Bjontegaard\cite{ref32-bjontegaard2001}提出的Delta计算框架，但将标准BD-Rate中以PSNR等客观质量指标作为质量轴的惯例改为以LPIPS作为质量轴；即在相同感知质量水平下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
-
+\textbf{评价体系。} 本文采用表~\ref{tab:eval-metrics}中的指标对系统进行评估。其中，BD-LPIPS是贯穿全文的核心指标，用于衡量在给定感知质量目标下的综合码率代价；$\Delta$LPIPS与$\Delta$码率用于解释序列级变化来源；参数量、单帧推理时间和端到端时延则用于验证方案是否具备实时部署潜力。相较于SSIM\cite{ref30-wang2004ssim}、边缘加强的超高清视频质量评价方法\cite{ref68-teng2023uhdvqa}以及Netflix提出的VMAF\cite{ref56-li2019vmaf}等传统视频质量度量，LPIPS\cite{ref31-zhang2018lpips}依赖预训练分类网络的深层特征空间来衡量感知距离，工程实践中常用的骨干之一为AlexNet\cite{Krizhevsky2012ImageNetCW}。需要说明的是，第三章奖励函数中使用$-\mathrm{LPIPS}$作为质量分数，以保证奖励中的质量项越大越好；本章报告的LPIPS和BD-LPIPS均采用原始LPIPS方向，即数值越低表示感知距离越小。本文所用BD-LPIPS沿用Bjontegaard\cite{ref32-bjontegaard2001}提出的Delta计算框架，但将标准BD-Rate中以PSNR等客观质量指标作为质量轴的惯例改为以LPIPS作为质量轴；即在相同感知质量水平下比较两条RD曲线的平均码率差异。若记Baseline与RAPNet在公共LPIPS区间$[v_{\min}, v_{\max}]$上的对数码率插值函数分别为$p_{\text{base}}(v)$与$p_{\text{rap}}(v)$，则
 \begin{equation}
   \mathrm{BD\mbox{-}LPIPS} = \left[\exp\left(\frac{1}{v_{\max}-v_{\min}}
   \int_{v_{\min}}^{v_{\max}} \bigl(p_{\text{rap}}(v)-p_{\text{base}}(v)\bigr)\,\mathrm{d}v\right)-1\right]\times 100\%,
@@ -261,7 +260,9 @@
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.96\textwidth]{data/主观图片/subjective_ycbcr_panel.png}
+  \makebox[\textwidth][c]{%
+    \includegraphics[width=1.06\textwidth]{data/主观图片/subjective_ycbcr_panel_large_labels.png}%
+  }
   \caption{Y/Cb/Cr各通道编码重建帧对比与差异图（差异图以99百分位归一化；暖色表示RAPNet增亮，冷色表示减暗）}
   \label{fig:subjective-ycbcr}
 \end{figure}
@@ -281,14 +282,14 @@
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.8\textwidth]{data/图片Preset对比实验.png}
+  \includegraphics[width=\textwidth]{data/figures_clean/preset_compare_enlarged.png}
   \caption{NVENC编码预设对比实验（HEVC-NVENC, 96帧, 1x Scale）}
   \label{fig:preset-compare}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.85\textwidth]{data/图片下采样算法.png}
+  \includegraphics[width=\textwidth]{data/figures_clean/downsample_compare_enlarged.png}
   \caption{不同下采样倍数下的Y-PSNR对比（Preset: p1, GOP: Default）}
   \label{fig:downsample-compare}
 \end{figure}

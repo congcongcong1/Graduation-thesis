@@ -1,0 +1,98 @@
+\documentclass[UTF8,zihao=-4]{ctexart}
+\usepackage[a4paper,top=2.6cm,bottom=2.6cm,left=2.6cm,right=2.6cm]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.35em}
+\renewcommand{\arraystretch}{1.35}
+\setlength{\tabcolsep}{3pt}
+\setlist[itemize]{leftmargin=2em,itemsep=0.15em,topsep=0.15em}
+
+\begin{document}
+
+\begin{center}
+  {\heiti\zihao{2} 本科毕业论文（设计）修改报告\par}
+  \vspace{1.2em}
+  \begin{tabular}{ll}
+    学生姓名： & 罗子聪 \\
+    学号： & 2022302121310 \\
+    学院： & 电子信息学院 \\
+    专业： & 通信工程 \\
+    指导教师： & 黄公平 \\
+    修改后题目： & 基于强化学习的视频编码前处理方案 \\
+    原题目： & 基于视频编码的协处理方案 \\
+  \end{tabular}
+\end{center}
+
+\section*{一、逐条修改说明}
+
+根据评阅意见和答辩意见，论文已围绕参考文献、章节结构、技术对标、写作规范、图表可读性和公式排版等方面进行修订。具体说明如下。
+
+\begin{longtable}{>{\centering\arraybackslash}p{0.8cm}p{4.0cm}p{7.2cm}p{2.6cm}}
+\toprule
+\textbf{序号} & \textbf{意见摘要} & \textbf{修改情况} & \textbf{对应位置} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{序号} & \textbf{意见摘要} & \textbf{修改情况} & \textbf{对应位置} \\
+\midrule
+\endhead
+1 & 中文参考文献偏少，参考文献格式需删除文末 DOI。 &
+已补充中文文献，重点增加《中国图象图形学报》中与视频处理压缩、视频超分辨率、压缩视频重构、超高清视频质量评价相关的文献；同时清理参考文献数据库中的 DOI 字段，使参考文献末尾不再显示 DOI 链接。 &
+第1章、第2章、第4章、参考文献 \\
+\midrule
+2 & 绪论中应明确介绍国内外研究现状。 &
+已将国内外研究现状调整并强化到第1章“绪论”中，分为“国外研究现状”“国内研究现状”和本文研究定位三部分，先说明国际标准、端到端学习型压缩和AI辅助编码的发展，再补充国内AVS、智能编码、视频超分与质量评价等研究基础。 &
+第1章1.2节 \\
+\midrule
+3 & 相关工作中应清晰标注并分析当前SOTA模型。 &
+已在相关工作章节中用星号显式标注 VRT、RVRT、BasicVSR++ 等SOTA或强SOTA参照模型，并补充说明这些模型主要面向离线复原或超分辨率公开基准，难以直接用于NVENC实时前处理场景。 &
+第2章2.2节 \\
+\midrule
+4 & 摘要中首次出现NVENC时应写出英文全称。 &
+已将摘要首次出现的 NVENC 修改为“NVIDIA硬件视频编码器（NVIDIA Video Encoder, NVENC）”，英文摘要中同步写为“NVIDIA Video Encoder (NVENC)”。正文首次出现处也给出完整中英文名称。 &
+中英文摘要、第1章1.1节、第2章2.1节 \\
+\midrule
+5 & 表2.4字号偏小，图4.6坐标轴字号过小，图4.7与图4.8缩放不足。 &
+已重排表2.4，取消整体缩放压缩，改用自动换行表格并增大字号；图4.6已重新生成大字号版本，提升通道标签、标题和色标刻度可读性；图4.7和图4.8已改为裁剪空白边距后的全宽插图，以放大曲线差异。 &
+第2章表2.4、第4章图4.6--图4.8 \\
+\midrule
+6 & LaTeX排版中公式前存在空行，应检查并修改。 &
+已检查正文中所有 equation/align 环境，删除公式环境前由于空行导致的额外段落间距，保证公式与前导文字之间排版连贯。 &
+第3章、第4章公式环境 \\
+\midrule
+7 & 修改报告需说明论文题目变更原因。 &
+已在本报告第二部分单独说明题目由“基于视频编码的协处理方案”改为“基于强化学习的视频编码前处理方案”的原因，并与论文实际研究对象保持一致。 &
+本报告第二部分 \\
+\bottomrule
+\end{longtable}
+
+\section*{二、题目变更说明}
+
+原题目“基于视频编码的协处理方案”在答辩前能够概括论文希望围绕视频编码链路做协同优化的初始设想，但“协处理”表述较宽泛，容易被理解为硬件协处理器、编码器内部模块协同或前后处理联合系统，未能准确体现论文最终完成的技术路线和实验重点。
+
+修订后的题目“基于强化学习的视频编码前处理方案”更准确地对应论文实际工作，原因如下：
+
+\begin{itemize}
+  \item \textbf{突出核心方法。} 论文最终采用Actor-Critic强化学习框架，将不可导的NVENC硬件编码器视为黑盒环境，通过真实编码反馈优化前处理策略，因此“强化学习”是论文的核心技术特征。
+  \item \textbf{明确处理位置。} 本文研究对象不是编码器内部工具替换，也不是解码后复原，而是在编码前对输入帧进行轻量化调整；“视频编码前处理”比“协处理”更能准确限定研究边界。
+  \item \textbf{贴合实验与贡献。} 第3章和第4章均围绕RAPNet前处理、NVENC低码率编码链路、BD-LPIPS收益和实时性开销展开，修改后的题目与论文结构、实验设计和主要结论保持一致。
+  \item \textbf{提高可读性和规范性。} 新题目能让评阅教师在阅读封面时直接判断论文研究对象、方法和应用场景，避免因题目过宽造成理解偏差。
+\end{itemize}
+
+综上，题目修改并非改变研究内容，而是对论文实际工作进行更准确、更聚焦的表述。
+
+\section*{三、总体说明}
+
+本次修订重点回应了评阅教师和答辩教师提出的实质性意见：一方面补充中文研究脉络、规范参考文献格式并强化绪论中的研究现状；另一方面在相关工作中明确SOTA模型和本文方案的关系，同时修正缩写、图表和公式排版问题。修订后论文的研究定位更清晰，技术对标更明确，版面可读性和写作规范性也得到改善。
+
+\vspace{2em}
+\noindent 学生签名：\hspace{5cm} 日期：\hspace{3cm}年\hspace{1cm}月\hspace{1cm}日
+
+\end{document}

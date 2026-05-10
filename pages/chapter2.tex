@@ -112,20 +112,35 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
   \centering
   \caption{编码器感知前处理方法对比表}
   \label{tab:encoder-aware-preprocessing}
-  \resizebox{\textwidth}{!}{
-  \begin{tabular}{lcccccc}
-    \toprule
-    \textbf{方法} & \textbf{编码器感知} & \textbf{Codec-in-the-loop训练} & \textbf{面向编码器} & \textbf{核心目标} & \textbf{参数量/实时性} & \textbf{适用阶段} \\
-    \midrule
-    Down-sampling+SR\cite{ref9-shen2011downsampling} & 弱(间接约束码率) & 否 & 泛用 & 降采样节约带宽 & 需配套超分/较慢 & 编码前缩放+解码后超分 \\
-    RR-DnCNN v2.0\cite{ref5-ho2021rrdncnn} & 弱(联合优化误差) & 否(端到端重训练) & HEVC等 & 频域恢复与重建 & 多分支CNN/中等 & 编码前滤波+解码后重建 \\
-    EA-MCTF\cite{ref12-vanam2023dcc} & 是(提取QP等特征) & 否(传统自适应滤波) & HEVC & 联合时空特征降噪 & 无(分块算法)/快 & 编码前单独滤波 \\
-    RPP\cite{ref17-ma2023rateperception} & 是(利用替代Proxy) & 否(通过代理网络间接结合) & 泛用(HEVC等) & 滤除高频/节约码率 & $\sim$百万级CNN/慢 & 编码前单独预处理 \\
-    RAPNet\cite{ref27-zhao2025rapnet} & 是(提取环境特征) & 是(与真实测试集交互评估) & AVS3/VVC等 & 动态策略增强画质 & $<$1M / 极快 & 编码前期实时干预 \\
-    \textbf{本文方案} & \textbf{是(NVENC真实反馈)} & \textbf{是(强化学习探索策略)} & \textbf{NVENC} & \textbf{算力自适应/低码率视觉提升} & \textbf{113K/$<$10ms} & \textbf{编码前端极低延迟旁路} \\
-    \bottomrule
-  \end{tabular}
+  \begingroup
+  \zihao{5}
+  \setlength{\tabcolsep}{2pt}
+  \renewcommand{\arraystretch}{1.16}
+  \begin{tabularx}{\textwidth}{@{}
+    >{\raggedright\arraybackslash}p{1.95cm}
+    >{\centering\arraybackslash}p{1.55cm}
+    >{\centering\arraybackslash}p{1.65cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{1.85cm}
+    >{\raggedright\arraybackslash}p{2.00cm}@{}
   }
+    \toprule
+    \textbf{方法} & \makecell{\textbf{感知/}\\\textbf{闭环}} & \textbf{编码器} & \textbf{核心目标} & \makecell{\textbf{参数量/}\\\textbf{实时性}} & \textbf{适用阶段} \\
+    \midrule
+    \makecell[l]{Downsample\\+SR}\cite{ref9-shen2011downsampling} & 弱/否 & 泛用 & 降采样节约带宽，需要解码端超分恢复 & 需配套超分，较慢 & 编码前缩放；解码后超分 \\
+    \addlinespace[0.25em]
+    \makecell[l]{RR-DnCNN\\v2.0}\cite{ref5-ho2021rrdncnn} & 弱/否 & HEVC等 & 频域恢复与重建联合优化 & 多分支CNN，中等 & 编码前滤波；解码后重建 \\
+    \addlinespace[0.25em]
+    EA-MCTF\cite{ref12-vanam2023dcc} & 是/否 & HEVC & 利用QP等编码特征进行时空降噪 & 分块算法，较快 & 编码前单独滤波 \\
+    \addlinespace[0.25em]
+    RPP\cite{ref17-ma2023rateperception} & 是/否 & HEVC等 & 借助代理网络滤除高频并节约码率 & 百万级CNN，较慢 & 编码前单独预处理 \\
+    \addlinespace[0.25em]
+    RAPNet\cite{ref27-zhao2025rapnet} & 是/是 & \makecell{AVS3/\\VVC等} & 真实编码反馈下的动态前处理策略 & $<$1M，极快 & 编码前实时干预 \\
+    \addlinespace[0.25em]
+    \textbf{本文方案} & \textbf{是/是} & \textbf{NVENC} & \textbf{以真实NVENC反馈优化低码率感知质量} & \makecell[l]{\textbf{113K/}\\\textbf{$<$10ms}} & \textbf{编码前端极低延迟旁路} \\
+    \bottomrule
+  \end{tabularx}
+  \endgroup
 \end{table}
 
 \subsection{面向实时编码的模型选型}
@@ -136,7 +151,7 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
 
 回到本文关注的实时前处理场景，骨干网络大致经历了由传统CNN到Transformer，再到状态空间模型的过程。以DnCNN\cite{Zhang2017DnCNN}、SRCNN\cite{ref42-dong2016srcnn}及EDSR\cite{ref43-lim2017edsr}为代表的早期CNN方法结构简单、易于部署，但感受野有限，难以充分建模长距离依赖，容易在强压缩场景下造成纹理损失和过度平滑；基于生成对抗网络(GAN)\cite{ref62-goodfellow2014gan}的方法如SRGAN\cite{ref44-ledig2017srgan}与ESRGAN\cite{ref45-wang2018esrgan}虽然能够合成锐利纹理，但往往引入与编码器不相容的高频噪声。以SwinIR\cite{ref25-liang2021swinir}为代表的Transformer方法则继承了Swin Transformer的分层自注意力思想\cite{Liu2021SwinTH}，通过更强的全局建模能力在图像复原任务上取得了更优性能，但其计算复杂度随分辨率呈二次增长，对于1080p及以上视频难以满足实时部署要求。
 
-在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}、改进EDVR\cite{ref14-huang2022edvr}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。
+在这一背景下，VRT\cite{ref22-liang2022vrt}、RVRT\cite{ref23-liang2022rvrt}、改进EDVR\cite{ref14-huang2022edvr}和BasicVSR++\cite{ref2-chan2021basicvsr,ref24-wang2022basicsr}等高性能视频复原模型更适合作为性能与复杂度对比参照，而非本文直接采用的前处理方案。国内关于视频超分辨率的综述也指出，现有方法的关键竞争点已从单帧重建转向时域对齐、跨帧传播与轻量化部署\cite{ref66-jiang2023vsr}；早期压缩视频超分辨率和近年轻量级对齐网络研究同样说明，压缩失真场景下的复原质量与模型复杂度需要共同权衡\cite{ref69-zhou2006compressedvsr,ref67-jin2022lightvsr}。如表~\ref{tab:vsr-compare}和表~\ref{tab:model-param-compare}所示，这类模型在公开数据集上具备较强恢复能力，但对应的参数量、显存占用和推理时延仍然偏高，难以直接嵌入实时硬件编码流水线。本文在相关表格中用$^{\ast}$标出当前常用的SOTA参照模型。
 
 \begin{table}[htbp]
   \centering
@@ -155,15 +170,15 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     EDVR         & 31.09/0.8800 & 37.61/0.9489 & 27.35/0.8264 & 39.89/0.9686 & 37.81/0.9523 & 27.85/0.8503 \\
     BasicVSR     & 31.42/0.8909 & 37.18/0.9450 & 27.24/0.8251 & 39.96/0.9694 & 37.53/0.9498 & 27.96/0.8553 \\
     IconVSR      & 31.67/0.8948 & 37.47/0.9476 & 27.39/0.8279 & 40.03/0.9694 & 37.84/0.9524 & 28.04/0.8570 \\
-    VRT          & 32.19/0.9006 & 38.20/0.9530 & 27.93/0.8425 & 41.05/0.9737 & 38.72/0.9584 & 29.42/0.8795 \\
-    BasicVSR++   & 32.39/0.9069 & 37.79/0.9500 & 27.79/0.8400 & 40.72/0.9722 & 38.21/0.9550 & 29.04/0.8753 \\
-    RVRT         & \textbf{32.75/0.9113} & \textbf{38.15/0.9527} & \textbf{27.99/0.8462} & \textbf{40.90/0.9729} & \textbf{38.59/0.9576} & \textbf{29.54/0.8810} \\
+    VRT$^{\ast}$          & 32.19/0.9006 & 38.20/0.9530 & 27.93/0.8425 & 41.05/0.9737 & 38.72/0.9584 & 29.42/0.8795 \\
+    BasicVSR++$^{\ast}$   & 32.39/0.9069 & 37.79/0.9500 & 27.79/0.8400 & 40.72/0.9722 & 38.21/0.9550 & 29.04/0.8753 \\
+    RVRT$^{\ast}$         & \textbf{32.75/0.9113} & \textbf{38.15/0.9527} & \textbf{27.99/0.8462} & \textbf{40.90/0.9729} & \textbf{38.59/0.9576} & \textbf{29.54/0.8810} \\
     \bottomrule
   \end{tabular}
   }
 \end{table}
 
-为了验证不同模型在实际部署中的可行性，表~\ref{tab:model-param-compare}详细对比了主流模型在$320 \times 180$输入尺寸下的参数量与推理耗时。数据显示，VRT的显存占用高达2149M，而BasicVSR++在保持较高PSNR (32.39dB)的同时，显存仍需223M、推理时延仍为77ms，说明即便是相对高效的视频复原模型，也与实时前处理的部署约束存在明显差距。
+为了验证不同模型在实际部署中的可行性，表~\ref{tab:model-param-compare}详细对比了主流模型在$320 \times 180$输入尺寸下的参数量与推理耗时。数据显示，VRT$^{\ast}$的显存占用高达2149M，而BasicVSR++$^{\ast}$在保持较高PSNR (32.39dB)的同时，显存仍需223M、推理时延仍为77ms；RVRT$^{\ast}$虽然在性能上最强，但推理时延仍达到183ms。上述结果说明，即便是当前SOTA或接近SOTA的视频复原模型，也与实时前处理的部署约束存在明显差距。
 
 \begin{table}[htbp]
   \centering
@@ -173,12 +188,12 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     \toprule
     \textbf{Method} & \textbf{\#Param (M)} & \textbf{Memory (M)} & \textbf{Runtime (ms)} & \textbf{PSNR (dB)} \\
     \midrule
-    BasicVSR++       & 7.3  & 223   & 77  & 32.39 \\
+    BasicVSR++$^{\ast}$       & 7.3  & 223   & 77  & 32.39 \\
     BasicVSR++ + RSTB & 9.3  & 1021  & 201 & 32.61 \\
     EDVR             & 20.6 & 3535  & 378 & 31.09 \\
     VSRT             & 32.6 & 27487 & 328 & 31.19 \\
-    VRT              & 35.6 & 2149  & 243 & 32.19 \\
-    RVRT             & 10.8 & 1056  & 183 & 32.75 \\
+    VRT$^{\ast}$              & 35.6 & 2149  & 243 & 32.19 \\
+    RVRT$^{\ast}$             & 10.8 & 1056  & 183 & 32.75 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -227,14 +242,16 @@ NVIDIA Video Encoder (NVENC) 是集成在NVIDIA GPU中的专用硬件编码引�
     \toprule
     \textbf{模型架构} & \textbf{适用阶段} & \textbf{参数量} & \textbf{推理耗时} & \textbf{显存占用} & \textbf{性能评价} & \textbf{备注} \\
     \midrule
-    VRT        & 仅限离线后处理  & $\sim$30--35M & $>$200ms & 2149M & 当前最优     & 综合性能最优 \\
-    RVRT       & 后处理/前处理   & $\sim$10.8M  & 183ms    & 1056M & 接近VRT  & 效率与性能较均衡 \\
-    BasicVSR++ & 前处理推荐      & $\sim$7.3M   & 77ms     & 223M  & 较优     & 参数效率突出 \\
+    VRT$^{\ast}$        & 仅限离线后处理  & $\sim$30--35M & $>$200ms & 2149M & 当前最优     & 综合性能最优 \\
+    RVRT$^{\ast}$       & 后处理/前处理   & $\sim$10.8M  & 183ms    & 1056M & 接近VRT  & 效率与性能较均衡 \\
+    BasicVSR++$^{\ast}$ & 前处理推荐      & $\sim$7.3M   & 77ms     & 223M  & 较优     & 参数效率突出 \\
     MambaIR    & 前处理推荐      & $<$1M        & $<$10ms  & $<$100M & 优于传统CNN  & 线性复杂度 \\
     \bottomrule
  \end{tabular}
   }
 \end{table}
+
+其中$^{\ast}$表示本文作为SOTA或强SOTA参照的模型。需要强调的是，这些模型的SOTA地位主要来自视频复原或超分辨率公开基准，而非来自NVENC前处理任务本身。其输入输出目标通常是解码后复原或离线增强，优化指标也多集中于PSNR/SSIM；若直接前置于实时编码链路，一方面会显著增加端到端时延，另一方面可能生成与编码器量化、块划分和熵编码不匹配的高频纹理，反而增加码率负担。因此，本文并不追求在通用复原任务上复现SOTA模型的最高画质，而是选择以轻量化RAPNet为核心，通过真实NVENC反馈优化更贴近实时前处理场景的率失真收益。
 
 综合上述分析可以看出，AI辅助视频编码的发展趋势正从单纯追求PSNR/SSIM等客观指标，转向与硬件编码器紧密结合、性能与效率协同优化的方向\cite{ref16-ding2021advances}。从表~\ref{tab:complexity-performance}可以看到，VRT、RVRT和BasicVSR++等模型虽然在复原任务中具有代表性，但其实时性仍不足以支撑NVENC流水线中的在线前处理。相比之下，参数规模更小、复杂度更低的轻量化模型更符合本文场景需求。因此，本文优先考虑参数量低于1M、推理时延低于10ms的前处理路线，并以此作为后续RAPNet方案设计与优化的选型依据。
 
